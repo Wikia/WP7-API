@@ -1,11 +1,15 @@
 ﻿// DotNetMetroWikiaAPI - Wikia API for C# Metro Style Applications
 // Distributed under the terms of the license:
+// TODO : NAME THE USED LICENCE
 // Authors:
-// Hazardius (2012-*) hazardiusam@gmail.com
-// Based on:
+// Hazardius (2012-*) hazardiusam at gmail dot com
+//
+// Work based on:
 // DotNetWikiBot Framework 2.101 - bot framework based on Microsoft .NET Framework 2.0 for wiki projects
 // Distributed under the terms of the MIT (X11) license: http://www.opensource.org/licenses/mit-license.php
 // Copyright (c) Iaroslav Vassiliev (2006-2012) codedriller@gmail.com
+//
+// Note: Most time it's just codedriller's code made to work on Windows Phone.
 
 using System;
 using System.Net;
@@ -212,10 +216,10 @@ namespace DotNetMetroWikiaAPI
         /// <returns>Returns Site object.</returns>
         public Site()
         {
-            if (File.Exists("Cache" + Path.DirectorySeparatorChar + "Defaults.dat") == true)
+            if (isf.FileExists("Cache\\Defaults.dat") == true)
             {
-                string[] lines = File.ReadAllLines(
-                    "Cache" + Path.DirectorySeparatorChar + "Defaults.dat", Encoding.UTF8);
+                string[] lines = ReadAllLines(
+                    "Cache\\Defaults.dat", Encoding.UTF8);
                 if (lines.GetUpperBound(0) >= 2)
                 {
                     this.site = lines[0];
@@ -233,6 +237,19 @@ namespace DotNetMetroWikiaAPI
             else
                 throw new WikiBotException(User.Msg("\"\\Cache\\Defaults.dat\" file not found."));
             Initialize();
+        }
+
+        /// <summary>This function is getting file content into table of text lines.</summary>
+        /// <param name="path">Path to the file(in the Insolated Storage)</param>
+        /// <param name="encType">Type of encoding the text use</param>
+        /// <returns>Table of text lines</returns>
+        internal string[] ReadAllLines(string path, Encoding encType)
+        {
+            List<string> tempList = new List<string>();
+
+            //TODO: Internals of this function.
+
+            return tempList.ToArray();
         }
 
         /// <summary>This internal function establishes connection to site and loads general site

@@ -28,6 +28,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 using System.IO.IsolatedStorage;
+using System.IO;
 
 namespace DotNetMetroWikiaAPI
 {
@@ -216,10 +217,10 @@ namespace DotNetMetroWikiaAPI
         /// <returns>Returns Site object.</returns>
         public Site()
         {
-            if (isf.FileExists("Cache\\Defaults.dat") == true)
+            if (isf.FileExists("Cache" + System.IO.Path.DirectorySeparatorChar + "Defaults.dat") == true)
             {
                 string[] lines = ReadAllLines(
-                    "Cache\\Defaults.dat", Encoding.UTF8);
+                    "Cache" + System.IO.Path.DirectorySeparatorChar + "Defaults.dat", Encoding.UTF8);
                 if (lines.GetUpperBound(0) >= 2)
                 {
                     this.site = lines[0];
@@ -231,11 +232,11 @@ namespace DotNetMetroWikiaAPI
                         this.userDomain = "";
                 }
                 else
-                    throw new WikiBotException(
+                    throw new WikiUserException(
                         User.Msg("\"\\Cache\\Defaults.dat\" file is invalid."));
             }
             else
-                throw new WikiBotException(User.Msg("\"\\Cache\\Defaults.dat\" file not found."));
+                throw new WikiUserException(User.Msg("\"\\Cache\\Defaults.dat\" file not found."));
             Initialize();
         }
 
@@ -247,7 +248,24 @@ namespace DotNetMetroWikiaAPI
         {
             List<string> tempList = new List<string>();
 
-            //TODO: Internals of this function.
+            try
+            {
+                using (IsolatedStorageFileStream rawStream = isf.OpenFile("Cache" + System.IO.Path.DirectorySeparatorChar + "Defaults.dat", System.IO.FileMode.Open))
+                {
+                    StreamReader reader = new StreamReader(rawStream, encType);
+
+                    for (int i = 0; reader.EndOfStream; i++)
+                    {
+                        tempList[i] = reader.ReadLine();
+                    }
+
+                    reader.Close();
+                }
+            }
+            catch
+            {
+                // TODO: Do something with that Exception.
+            }
 
             return tempList.ToArray();
         }

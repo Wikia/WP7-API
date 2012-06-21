@@ -1,4 +1,13 @@
-﻿using System;
+﻿// DotNetMetroWikiaAPI - Wikia API for C# Metro Style Applications
+// Distributed under the terms of the license:
+// Authors:
+// Hazardius (2012-*) hazardiusam@gmail.com
+// Based on:
+// DotNetWikiBot Framework 2.101 - bot framework based on Microsoft .NET Framework 2.0 for wiki projects
+// Distributed under the terms of the MIT (X11) license: http://www.opensource.org/licenses/mit-license.php
+// Copyright (c) Iaroslav Vassiliev (2006-2012) codedriller@gmail.com
+
+using System;
 using System.Net;
 using System.Windows;
 using System.Windows.Controls;
@@ -13,6 +22,8 @@ using System.Text.RegularExpressions;
 using System.Xml;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Text;
+using System.IO.IsolatedStorage;
 
 namespace DotNetMetroWikiaAPI
 {
@@ -166,5 +177,95 @@ namespace DotNetMetroWikiaAPI
         public CultureInfo langCulture;
         /// <summary>Randomly chosen regional (non-neutral) culture for site's language.</summary>
         public CultureInfo regCulture;
+        /// <summary>Windows Phone Isolated Storage</summary>
+        private IsolatedStorageFile isf = IsolatedStorageFile.GetUserStoreForApplication();
+
+        /// <summary>This constructor is used to generate most Site objects.</summary>
+        /// <param name="site">Wiki site's URI. It must point to the main page of the wiki, e.g.
+        /// "http://en.wikipedia.org" or "http://127.0.0.1:80/w/index.php?title=Main_page".</param>
+        /// <param name="userName">User name to log in.</param>
+        /// <param name="userPass">Password.</param>
+        /// <returns>Returns Site object.</returns>
+        public Site(string site, string userName, string userPass)
+            : this(site, userName, userPass, "") { }
+
+        /// <summary>This constructor is used for LDAP authentication. Additional information can
+        /// be found at "http://www.mediawiki.org/wiki/Extension:LDAP_Authentication".</summary>
+        /// <param name="site">Wiki site's URI. It must point to the main page of the wiki, e.g.
+        /// "http://en.wikipedia.org" or "http://127.0.0.1:80/w/index.php?title=Main_page".</param>
+        /// <param name="userName">User name to log in.</param>
+        /// <param name="userPass">Password.</param>
+        /// <param name="userDomain">Domain for LDAP authentication.</param>
+        /// <returns>Returns Site object.</returns>
+        public Site(string site, string userName, string userPass, string userDomain)
+        {
+            this.site = site;
+            this.userName = userName;
+            this.userPass = userPass;
+            this.userDomain = userDomain;
+            Initialize();
+        }
+
+        /// <summary>This constructor uses default site, userName and password. The site URL and
+        /// account data can be stored in UTF8-encoded "Defaults.dat" file in bot's "Cache"
+        /// subdirectory.</summary>
+        /// <returns>Returns Site object.</returns>
+        public Site()
+        {
+            if (File.Exists("Cache" + Path.DirectorySeparatorChar + "Defaults.dat") == true)
+            {
+                string[] lines = File.ReadAllLines(
+                    "Cache" + Path.DirectorySeparatorChar + "Defaults.dat", Encoding.UTF8);
+                if (lines.GetUpperBound(0) >= 2)
+                {
+                    this.site = lines[0];
+                    this.userName = lines[1];
+                    this.userPass = lines[2];
+                    if (lines.GetUpperBound(0) >= 3)
+                        this.userDomain = lines[3];
+                    else
+                        this.userDomain = "";
+                }
+                else
+                    throw new WikiBotException(
+                        User.Msg("\"\\Cache\\Defaults.dat\" file is invalid."));
+            }
+            else
+                throw new WikiBotException(User.Msg("\"\\Cache\\Defaults.dat\" file not found."));
+            Initialize();
+        }
+
+        /// <summary>This internal function establishes connection to site and loads general site
+        /// info by the use of other functions. Function is called from the constructors.</summary>
+        public void Initialize()
+        {
+            xmlNS = new XmlNamespaceManager(xhtmlNameTable);
+            if (site.Contains("sourceforge"))
+            {
+                site = site.Replace("https://", "http://");
+                GetPaths();
+                xmlNS.AddNamespace("ns", xhtmlNSUri);
+                LoadDefaults();
+                LogInSourceForge();
+                site = site.Replace("http://", "https://");
+            }
+            else if (site.Contains("wikia.com"))
+            {
+                GetPaths();
+                xmlNS.AddNamespace("ns", xhtmlNSUri);
+                LoadDefaults();
+                LogInViaApi();
+            }
+            else
+            {
+                GetPaths();
+                xmlNS.AddNamespace("ns", xhtmlNSUri);
+                LoadDefaults();
+                LogIn();
+            }
+            GetInfo();
+            if (!User.isRunningOnMono)
+                User.DisableCanonicalizingUriAsFilePath();	// .NET bug evasion
+        }
     }
 }

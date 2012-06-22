@@ -29,6 +29,7 @@ using System.Globalization;
 using System.Text;
 using System.IO.IsolatedStorage;
 using System.IO;
+using System.Threading;
 
 namespace DotNetMetroWikiaAPI
 {
@@ -240,36 +241,6 @@ namespace DotNetMetroWikiaAPI
             Initialize();
         }
 
-        /// <summary>This function is getting file content into table of text lines.</summary>
-        /// <param name="path">Path to the file(in the Insolated Storage)</param>
-        /// <param name="encType">Type of encoding the text use</param>
-        /// <returns>Table of text lines</returns>
-        internal string[] ReadAllLines(string path, Encoding encType)
-        {
-            List<string> tempList = new List<string>();
-
-            try
-            {
-                using (IsolatedStorageFileStream rawStream = isf.OpenFile("Cache" + System.IO.Path.DirectorySeparatorChar + "Defaults.dat", System.IO.FileMode.Open))
-                {
-                    StreamReader reader = new StreamReader(rawStream, encType);
-
-                    for (int i = 0; reader.EndOfStream; i++)
-                    {
-                        tempList[i] = reader.ReadLine();
-                    }
-
-                    reader.Close();
-                }
-            }
-            catch
-            {
-                // TODO: Do something with that Exception.
-            }
-
-            return tempList.ToArray();
-        }
-
         /// <summary>This internal function establishes connection to site and loads general site
         /// info by the use of other functions. Function is called from the constructors.</summary>
         public void Initialize()
@@ -301,6 +272,384 @@ namespace DotNetMetroWikiaAPI
             GetInfo();
             if (!User.isRunningOnMono)
                 User.DisableCanonicalizingUriAsFilePath();	// .NET bug evasion
+        }
+
+        private static void asyncHelper(IAsyncResult asyncReceive)
+        {
+            return;
+        }
+
+        /// <summary>Gets path to "index.php", short path to pages (if present), and then
+        /// saves paths to file.</summary>
+        public void GetPaths()
+        {
+            if (!site.StartsWith("http"))
+                site = "http://" + site;
+            if (User.CountMatches(site, "/", false) == 3 && site.EndsWith("/"))
+                site = site.Substring(0, site.Length - 1);
+            string filePathName = "Cache" + System.IO.Path.DirectorySeparatorChar +
+                HttpUtility.UrlEncode(site.Replace("://", ".").Replace("/", ".")) + ".dat";
+            if (File.Exists(filePathName) == true)
+            {
+                string[] lines = ReadAllLines(filePathName, Encoding.UTF8);
+                if (lines.GetUpperBound(0) >= 4)
+                {
+                    wikiPath = lines[0];
+                    indexPath = lines[1];
+                    xhtmlNSUri = lines[2];
+                    language = lines[3];
+                    langDirection = lines[4];
+                    if (lines.GetUpperBound(0) >= 5)
+                        site = lines[5];
+                    return;
+                }
+            }
+            Console.WriteLine(User.Msg("Logging in..."));
+            WebClient webClient = (new WebClient());
+            webClient.BaseAddress = site;
+
+            HttpWebRequest webReq = null;
+
+            //webReq.Proxy.Credentials = CredentialCache.DefaultCredentials;
+            //webReq.UseDefaultCredentials = true;
+            webClient.UseDefaultCredentials = true;
+
+            //webReq.ContentType = User.webContentType;
+            //webReq.UserAgent = User.botVer;
+            if (User.unsafeHttpHeaderParsingUsed == 0)
+            {
+                //webReq.ProtocolVersion = HttpVersion.Version10;
+                //webReq.KeepAlive = false;
+            }
+            HttpWebResponse webResp = null;
+            for (int errorCounter = 0; true; errorCounter++)
+            {
+                try
+                {
+                    webClient.OpenReadAsync(webResp);
+                    WebRequest webReq = 
+                    //webClient.DownloadStringAsync(webResp);
+                    //webResp = (HttpWebResponse)webReq.GetResponse();
+                    break;
+                }
+                catch (WebException e)
+                {
+                    string message = e.Message;
+                    if (Regex.IsMatch(message, ": \\(50[02349]\\) "))
+                    {		// Remote problem
+                        if (errorCounter > User.retryTimes)
+                            throw;
+                        Console.Error.WriteLine(message + " " + User.Msg("Retrying in 60 seconds."));
+                        Thread.Sleep(60000);
+                    }
+                    else if (message.Contains("Section=ResponseStatusLine"))
+                    {	// Squid problem
+                        User.SwitchUnsafeHttpHeaderParsing(true);
+                        GetPaths();
+                        return;
+                    }
+                    else
+                    {
+                        Console.Error.WriteLine(User.Msg("Can't access the site.") + " " + message);
+                        throw;
+                    }
+                }
+            }
+            site = webResp.Scheme + "://" + webResp; //.Authority;
+            Regex wikiPathRE = new Regex("(?i)" + Regex.Escape(site) + "(/.+?/).+");
+            Regex indexPathRE1 = new Regex("(?i)" + Regex.Escape(site) +
+                "(/.+?/)index\\.php(\\?|/)");
+            Regex indexPathRE2 = new Regex("(?i)href=\"(/[^\"\\s<>?]*?)index\\.php(\\?|/)");
+            Regex indexPathRE3 = new Regex("(?i)wgScript=\"(/[^\"\\s<>?]*?)index\\.php");
+            Regex xhtmlNSUriRE = new Regex("(?i)<html[^>]*( xmlns=\"(?'xmlns'[^\"]+)\")[^>]*>");
+            Regex languageRE = new Regex("(?i)<html[^>]*( lang=\"(?'lang'[^\"]+)\")[^>]*>");
+            Regex langDirectionRE = new Regex("(?i)<html[^>]*( dir=\"(?'dir'[^\"]+)\")[^>]*>");
+            string mainPageUri = webResp.ToString();
+            if (mainPageUri.Contains("/index.php?"))
+                indexPath = indexPathRE1.Match(mainPageUri).Groups[1].ToString();
+            else
+                wikiPath = wikiPathRE.Match(mainPageUri).Groups[1].ToString();
+            if (string.IsNullOrEmpty(indexPath) && string.IsNullOrEmpty(wikiPath) &&
+                mainPageUri[mainPageUri.Length - 1] != '/' &&
+                User.CountMatches(mainPageUri, "/", false) == 3)
+                wikiPath = "/";
+            Stream respStream = webResp.GetResponseStream();
+            if (webResp.ContentEncoding.ToLower().Contains("gzip"))
+                respStream = new GZipStream(respStream, CompressionMode.Decompress);
+            else if (webResp.ContentEncoding.ToLower().Contains("deflate"))
+                respStream = new DeflateStream(respStream, CompressionMode.Decompress);
+            StreamReader strmReader = new StreamReader(respStream, Encoding.UTF8);
+            string src = strmReader.ReadToEnd();
+            if (!site.Contains("wikia.com"))
+                indexPath = indexPathRE2.Match(src).Groups[1].ToString();
+            else
+                indexPath = indexPathRE3.Match(src).Groups[1].ToString();
+            xhtmlNSUri = xhtmlNSUriRE.Match(src).Groups["xmlns"].ToString();
+            if (string.IsNullOrEmpty(xhtmlNSUri))
+                xhtmlNSUri = "http://www.w3.org/1999/xhtml";
+            language = languageRE.Match(src).Groups["lang"].ToString();
+            langDirection = langDirectionRE.Match(src).Groups["dir"].ToString();
+            if (!Directory.Exists("Cache"))
+                Directory.CreateDirectory("Cache");
+            WriteAllText(filePathName, wikiPath + "\r\n" + indexPath + "\r\n" + xhtmlNSUri +
+                "\r\n" + language + "\r\n" + langDirection + "\r\n" + site, Encoding.UTF8);
+        }
+
+        /// <summary>Retrieves metadata and local namespace names from site.</summary>
+        public void GetInfo()
+        {
+            try
+            {
+                langCulture = new CultureInfo(language); //language, false);
+            }
+            catch (Exception)
+            {
+                langCulture = new CultureInfo("");
+            }
+            if (langCulture.Equals(CultureInfo.CurrentUICulture.Parent))
+                regCulture = CultureInfo.CurrentUICulture;
+            else
+            {
+                try
+                {
+                    regCulture = CultureInfo.ReadOnly(new CultureInfo(language));
+                    //regCulture = CultureInfo.CreateSpecificCulture(language);
+                }
+                catch (Exception)
+                {
+                    foreach (CultureInfo ci in 
+                        CultureInfo.GetCultures(CultureTypes.SpecificCultures))
+                    {
+                        if (langCulture.Equals(ci.Parent))
+                        {
+                            regCulture = ci;
+                            break;
+                        }
+                    }
+                    if (regCulture == null)
+                        regCulture = CultureInfo.InvariantCulture;
+                }
+            }
+
+            string src = GetPageHTM(site + indexPath + "index.php?title=Special:Export/" +
+                DateTime.Now.Ticks.ToString("x"));
+            XmlReader reader = XmlReader.Create(new StringReader(src));
+            //XmlTextReader reader = new XmlTextReader(new StringReader(src));
+            reader.Settings.IgnoreWhitespace = true;
+            reader.ReadToFollowing("sitename");
+            name = reader.ReadContentAsString();
+            reader.ReadToFollowing("generator");
+            generator = reader.ReadContentAsString();
+            ver = new Version(Regex.Replace(generator, @"[^\d\.]", ""));
+            float.TryParse(ver.ToString(), NumberStyles.AllowDecimalPoint,
+                new CultureInfo("en-US"), out version);
+            reader.ReadToFollowing("case");
+            capitalization = reader.ReadContentAsString();
+            namespaces.Clear();
+            while (reader.ReadToFollowing("namespace"))
+                namespaces.Add(reader.GetAttribute("key"),
+                    HttpUtility.HtmlDecode(reader.ReadContentAsString()));
+            reader.Close();
+            namespaces.Remove("0");
+            foreach (KeyValuePair<string, string> ns in namespaces)
+            {
+                if (!wikiNSpaces.ContainsKey(ns.Key) ||
+                    ns.Key.ToString() == "4" || ns.Key.ToString() == "5")
+                    wikiNSpaces[ns.Key] = ns.Value;
+            }
+            if (ver >= new Version(1, 14))
+            {
+                wikiNSpaces["6"] = "File";
+                wikiNSpaces["7"] = "File talk";
+            }
+            wikiCategoryRE = new Regex(@"\[\[(?i)(((" + Regex.Escape(wikiNSpaces["14"].ToString()) +
+                "|" + Regex.Escape(namespaces["14"].ToString()) + @"):(.+?))(\|(.+?))?)]]");
+            wikiImageRE = new Regex(@"\[\[(?i)((File|Image" +
+                "|" + Regex.Escape(namespaces["6"].ToString()) + @"):(.+?))(\|(.+?))*?]]");
+            string namespacesStr = "";
+            foreach (KeyValuePair<string, string> ns in namespaces)
+                namespacesStr += Regex.Escape(ns.Value.ToString()) + "|";
+            namespacesStr = namespacesStr.Replace("||", "|").Trim("|".ToCharArray());
+            linkToPageRE3 = new Regex("<a href=\"[^\"]*?\" title=\"(" +
+                Regex.Escape(namespaces["6"].ToString()) + ":[^\"]+?)\">");
+            string redirectTag = "REDIRECT";
+            switch (language)
+            {		// Revised 2010-07-02 (MediaWiki 1.15.4)
+                case "af": redirectTag += "|aanstuur"; break;
+                case "ar": redirectTag += "|تحويل"; break;
+                case "arz": redirectTag += "|تحويل|تحويل#"; break;
+                case "be": redirectTag += "|перанакіраваньне"; break;
+                case "be-x-old": redirectTag += "|перанакіраваньне"; break;
+                case "bg": redirectTag += "|пренасочване|виж"; break;
+                case "br": redirectTag += "|adkas"; break;
+                case "bs": redirectTag += "|preusmjeri"; break;
+                case "cs": redirectTag += "|přesměruj"; break;
+                case "cu": redirectTag += "|прѣнаправлєниѥ"; break;
+                case "cy": redirectTag += "|ail-cyfeirio|ailgyfeirio"; break;
+                case "de": redirectTag += "|weiterleitung"; break;
+                case "el": redirectTag += "|ανακατευθυνση"; break;
+                case "eo": redirectTag += "|alidirektu"; break;
+                case "es": redirectTag += "|redireccíon"; break;
+                case "et": redirectTag += "|suuna"; break;
+                case "eu": redirectTag += "|birzuzendu"; break;
+                case "fa": redirectTag += "|تغییرمسیر"; break;
+                case "fi": redirectTag += "|uudelleenohjaus|ohjaus"; break;
+                case "fr": redirectTag += "|redirection"; break;
+                case "ga": redirectTag += "|athsheoladh"; break;
+                case "gl": redirectTag += "|redirección"; break;
+                case "he": redirectTag += "|הפניה"; break;
+                case "hr": redirectTag += "|preusmjeri"; break;
+                case "hu": redirectTag += "|átirányítás"; break;
+                case "hy": redirectTag += "|վերահղում"; break;
+                case "id": redirectTag += "|alih"; break;
+                case "is": redirectTag += "|tilvísun"; break;
+                case "it": redirectTag += "|redirezione"; break;
+                case "ja": redirectTag += "|転送|リダイレクト|転送|リダイレクト"; break;
+                case "ka": redirectTag += "|გადამისამართება"; break;
+                case "kk": redirectTag += "|ايداۋ|айдау|aýdaw"; break;
+                case "km": redirectTag += "|បញ្ជូនបន្ត|ប្ដូរទីតាំងទៅ #ប្តូរទីតាំងទៅ"
+                    + "|ប្ដូរទីតាំង|ប្តូរទីតាំង|ប្ដូរចំណងជើង"; break;
+                case "ko": redirectTag += "|넘겨주기"; break;
+                case "ksh": redirectTag += "|ömleidung"; break;
+                case "lt": redirectTag += "|peradresavimas"; break;
+                case "mk": redirectTag += "|пренасочување|види"; break;
+                case "ml": redirectTag += "|аґ¤аґїаґ°аґїаґљаµЌаґљаµЃаґµаґїаґџаµЃаґ•" +
+                    "|аґ¤аґїаґ°аґїаґљаµЌаґљаµЃаґµаґїаґџаґІаµЌвЂЌ"; break;
+                case "mr": redirectTag += "|а¤ЄаҐЃа¤Ёа¤°аҐЌа¤Ёа¤їа¤°аҐЌа¤¦аҐ‡а¤¶а¤Ё"; break;
+                case "mt": redirectTag += "|rindirizza"; break;
+                case "mwl": redirectTag += "|ancaminar"; break;
+                case "nds": redirectTag += "|wiederleiden"; break;
+                case "nds-nl": redirectTag += "|deurverwiezing|doorverwijzing"; break;
+                case "nl": redirectTag += "|doorverwijzing"; break;
+                case "nn": redirectTag += "|omdiriger"; break;
+                case "oc": redirectTag += "|redireccion"; break;
+                case "pl": redirectTag += "|patrz|przekieruj|tam"; break;
+                case "pt": redirectTag += "|redirecionamento"; break;
+                case "ro": redirectTag += "|redirecteaza"; break;
+                case "ru": redirectTag += "|перенаправление|перенапр"; break;
+                case "sa": redirectTag += "|а¤ЄаҐЃа¤Ёа¤°аҐЌа¤Ёа¤їа¤¦аҐ‡а¤¶а¤Ё"; break;
+                case "sd": redirectTag += "|چوريو"; break;
+                case "si": redirectTag += "|а¶єа·…а·’а¶єа·ња¶ёа·”а·Ђ"; break;
+                case "sk": redirectTag += "|presmeruj"; break;
+                case "sl": redirectTag += "|preusmeritev"; break;
+                case "sq": redirectTag += "|ridrejto"; break;
+                case "sr": redirectTag += "|преусмери|preusmeri"; break;
+                case "srn": redirectTag += "|doorverwijzing"; break;
+                case "sv": redirectTag += "|omdirigering"; break;
+                case "ta": redirectTag += "|а®µа®ґа®їа®®а®ѕа®±аЇЌа®±аЇЃ"; break;
+                case "te": redirectTag += "|а°¦а°ѕа°°а°їа°®а°ѕа°°а±Ќа°Єа±Ѓ"; break;
+                case "tr": redirectTag += "|yönlendİrme"; break;
+                case "tt": redirectTag += "перенаправление|перенапр|yünältü"; break;
+                case "uk": redirectTag += "|перенаправлення|перенаправление|перенапр"; break;
+                case "vi": redirectTag += "|đổi|đổi"; break;
+                case "vro": redirectTag += "|saadaq|suuna"; break;
+                case "yi": redirectTag += "|ווייטערפירן|#הפניה"; break;
+                default: redirectTag = "REDIRECT"; break;
+            }
+            redirectRE = new Regex(@"(?i)^#(?:" + redirectTag + @")\s*:?\s*\[\[(.+?)(\|.+)?]]",
+                RegexOptions.Compiled);
+            Console.WriteLine(User.Msg("Site: {0} ({1})"), name, generator);
+            string botQueryUriStr = site + indexPath + "api.php?version";
+            string respStr;
+            try
+            {
+                respStr = GetPageHTM(botQueryUriStr);
+                if (respStr.Contains("<title>MediaWiki API</title>"))
+                {
+                    botQuery = true;
+                    Regex botQueryVersionsRE = new Regex(@"(?i)<b><i>\$" +
+                        @"Id: (\S+) (\d+) (.+?) \$</i></b>");
+                    foreach (Match m in botQueryVersionsRE.Matches(respStr))
+                        botQueryVersions[m.Groups[1].ToString()] = m.Groups[2].ToString();
+                    if (!botQueryVersions.ContainsKey("ApiMain.php") && ver > new Version(1, 17))
+                    {
+                        // if versioning system is broken
+                        botQueryVersions["ApiQueryCategoryMembers.php"] = "104449";
+                        botQueryVersions["ApiQueryRevisions.php"] = "104449";
+                    }
+                }
+            }
+            catch (WebException)
+            {
+                botQuery = false;
+            }
+            if ((botQuery == false || !botQueryVersions.ContainsKey("ApiQueryCategoryMembers.php"))
+                && ver < new Version(1, 16))
+            {
+                botQueryUriStr = site + indexPath + "query.php";
+                try
+                {
+                    respStr = GetPageHTM(botQueryUriStr);
+                    if (respStr.Contains("<title>MediaWiki Query Interface</title>"))
+                    {
+                        botQuery = true;
+                        botQueryVersions["query.php"] = "Unknown";
+                    }
+                }
+                catch (WebException)
+                {
+                    return;
+                }
+            }
+        }
+
+        // Added to make it work on WP7
+
+        /// <summary>Opens a text file, reads all lines of the file, and then closes the
+        /// file.</summary>
+        /// <param name="path">The file(in the Insolated Storage) to open for reading.</param>
+        /// <param name="encType">Type encoding used in the file.</param>
+        /// <returns>A string array containing all lines of the file.</returns>
+        internal string[] ReadAllLines(string path, Encoding encType)
+        {
+            List<string> tempList = new List<string>();
+
+            try
+            {
+                using (IsolatedStorageFileStream rawStream = isf.OpenFile("Cache" + System.IO.Path.DirectorySeparatorChar + "Defaults.dat", System.IO.FileMode.Open))
+                {
+                    StreamReader reader = new StreamReader(rawStream, encType);
+
+                    for (int i = 0; reader.EndOfStream; i++)
+                    {
+                        tempList[i] = reader.ReadLine();
+                    }
+
+                    reader.Close();
+                }
+            }
+            catch
+            {
+                // TODO: Do something with that Exception.
+            }
+
+            return tempList.ToArray();
+        }
+
+        /// <summary>Creates a new file, write the contents to the file, and then closes
+        /// the file. If the target file already exists, it is overwritten</summary>
+        /// <param name="path">The file(in the Insolated Storage) to write to.</param>
+        /// <param name="contents">The string to write to the file.</param>
+        /// <param name="encoding">The encoding to apply to the string.</param>
+        internal void WriteAllText(string path, string contents, Encoding encoding)
+        {
+            List<string> tempList = new List<string>();
+
+            using (isf)
+            {
+                if (isf.FileExists(path))
+                    isf.DeleteFile(path);
+
+                using (IsolatedStorageFileStream rawStream = isf.CreateFile(path))
+                {
+                    StreamWriter writer = new StreamWriter(rawStream);
+
+                    //Probably would work with that encoding.
+                    writer.WriteLine(contents, encoding);
+
+                    writer.Close();
+                }
+            }
         }
     }
 }

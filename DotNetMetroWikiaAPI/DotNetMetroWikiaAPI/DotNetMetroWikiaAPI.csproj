@@ -48,6 +48,9 @@
     <Reference Include="System.Xml" />
     <Reference Include="System.Net" />
     <Reference Include="mscorlib.extensions" />
+    <Reference Include="WindowsPhonePostClient">
+      <HintPath>C:\Users\Marcin\Downloads\WindowsPhonePostClient\WindowsPhonePostClient\WindowsPhonePostClient\Bin\Release\WindowsPhonePostClient.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="PageList.cs" />

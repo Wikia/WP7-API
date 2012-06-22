@@ -305,29 +305,25 @@ namespace DotNetMetroWikiaAPI
                 }
             }
             Console.WriteLine(User.Msg("Logging in..."));
-            WebClient webClient = (new WebClient());
-            webClient.BaseAddress = site;
-
-            HttpWebRequest webReq = null;
-
+            //WebClient webClient = new WebClient();
+            //webClient.BaseAddress = site;
             //webReq.Proxy.Credentials = CredentialCache.DefaultCredentials;
-            //webReq.UseDefaultCredentials = true;
-            webClient.UseDefaultCredentials = true;
-
+            //webClient.UseDefaultCredentials = true;
             //webReq.ContentType = User.webContentType;
             //webReq.UserAgent = User.botVer;
+            string data;
             if (User.unsafeHttpHeaderParsingUsed == 0)
             {
                 //webReq.ProtocolVersion = HttpVersion.Version10;
                 //webReq.KeepAlive = false;
             }
-            HttpWebResponse webResp = null;
             for (int errorCounter = 0; true; errorCounter++)
             {
                 try
                 {
-                    webClient.OpenReadAsync(webResp);
-                    WebRequest webReq = 
+                    data = HTTPGet();
+
+                    //webClient.OpenReadAsync(webResp);
                     //webClient.DownloadStringAsync(webResp);
                     //webResp = (HttpWebResponse)webReq.GetResponse();
                     break;
@@ -355,7 +351,7 @@ namespace DotNetMetroWikiaAPI
                     }
                 }
             }
-            site = webResp.Scheme + "://" + webResp; //.Authority;
+            //site = webResp.ResponseUri.Scheme + "://" + webResp.ResponseUri.Authority;
             Regex wikiPathRE = new Regex("(?i)" + Regex.Escape(site) + "(/.+?/).+");
             Regex indexPathRE1 = new Regex("(?i)" + Regex.Escape(site) +
                 "(/.+?/)index\\.php(\\?|/)");
@@ -364,7 +360,7 @@ namespace DotNetMetroWikiaAPI
             Regex xhtmlNSUriRE = new Regex("(?i)<html[^>]*( xmlns=\"(?'xmlns'[^\"]+)\")[^>]*>");
             Regex languageRE = new Regex("(?i)<html[^>]*( lang=\"(?'lang'[^\"]+)\")[^>]*>");
             Regex langDirectionRE = new Regex("(?i)<html[^>]*( dir=\"(?'dir'[^\"]+)\")[^>]*>");
-            string mainPageUri = webResp.ToString();
+            string mainPageUri = data;
             if (mainPageUri.Contains("/index.php?"))
                 indexPath = indexPathRE1.Match(mainPageUri).Groups[1].ToString();
             else
@@ -373,13 +369,14 @@ namespace DotNetMetroWikiaAPI
                 mainPageUri[mainPageUri.Length - 1] != '/' &&
                 User.CountMatches(mainPageUri, "/", false) == 3)
                 wikiPath = "/";
-            Stream respStream = webResp.GetResponseStream();
-            if (webResp.ContentEncoding.ToLower().Contains("gzip"))
-                respStream = new GZipStream(respStream, CompressionMode.Decompress);
-            else if (webResp.ContentEncoding.ToLower().Contains("deflate"))
-                respStream = new DeflateStream(respStream, CompressionMode.Decompress);
-            StreamReader strmReader = new StreamReader(respStream, Encoding.UTF8);
-            string src = strmReader.ReadToEnd();
+            // Comment: Hope it won't broke here.
+            //Stream respStream = data;
+            //if (webResp.ContentEncoding.ToLower().Contains("gzip"))
+            //    respStream = new GZipStream(respStream, CompressionMode.Decompress);
+            //else if (webResp.ContentEncoding.ToLower().Contains("deflate"))
+            //    respStream = new DeflateStream(respStream, CompressionMode.Decompress);
+            //StreamReader strmReader = new StreamReader(respStream, Encoding.UTF8);
+            string src = data; //strmReader.ReadToEnd();
             if (!site.Contains("wikia.com"))
                 indexPath = indexPathRE2.Match(src).Groups[1].ToString();
             else
@@ -412,7 +409,7 @@ namespace DotNetMetroWikiaAPI
             {
                 try
                 {
-                    regCulture = CultureInfo.ReadOnly(new CultureInfo(language));
+                    regCulture = (new CultureInfo(language));
                     //regCulture = CultureInfo.CreateSpecificCulture(language);
                 }
                 catch (Exception)
@@ -431,7 +428,7 @@ namespace DotNetMetroWikiaAPI
                 }
             }
 
-            string src = GetPageHTM(site + indexPath + "index.php?title=Special:Export/" +
+            string src = HTTPGet(site + indexPath + "index.php?title=Special:Export/" +
                 DateTime.Now.Ticks.ToString("x"));
             XmlReader reader = XmlReader.Create(new StringReader(src));
             //XmlTextReader reader = new XmlTextReader(new StringReader(src));
@@ -553,7 +550,7 @@ namespace DotNetMetroWikiaAPI
             string respStr;
             try
             {
-                respStr = GetPageHTM(botQueryUriStr);
+                respStr = HTTPGet(botQueryUriStr); //GetPageHTM(botQueryUriStr);
                 if (respStr.Contains("<title>MediaWiki API</title>"))
                 {
                     botQuery = true;
@@ -579,7 +576,7 @@ namespace DotNetMetroWikiaAPI
                 botQueryUriStr = site + indexPath + "query.php";
                 try
                 {
-                    respStr = GetPageHTM(botQueryUriStr);
+                    respStr = HTTPGet(botQueryUriStr); //GetPageHTM(botQueryUriStr);
                     if (respStr.Contains("<title>MediaWiki Query Interface</title>"))
                     {
                         botQuery = true;
@@ -593,7 +590,7 @@ namespace DotNetMetroWikiaAPI
             }
         }
 
-        // Added to make it work on WP7
+        // Another methods added to make it work on WP7
 
         /// <summary>Opens a text file, reads all lines of the file, and then closes the
         /// file.</summary>
@@ -650,6 +647,105 @@ namespace DotNetMetroWikiaAPI
                     writer.Close();
                 }
             }
+        }
+
+        /// <summary>A great way of simplifying HTTP GET requests. Developed by Vangos.
+        /// Changed by Hazardius 22.06.2012 .
+        /// Found on:
+        /// http://studentguru.gr/b/vangos/archive/2011/05/17/an-http-post-request-client-for-windows-phone-7.aspx
+        /// </summary>
+        /// <returns>Downloaded data as a string.</returns>
+        internal string HTTPGet()
+        {
+            string data = null;
+            WebClient webClient = new WebClient();
+            webClient.UseDefaultCredentials = true;
+
+            webClient.DownloadStringCompleted += (sender, e) =>
+            {
+                if (e.Error == null)
+                {
+                    data = e.Result;
+                }
+            };
+            webClient.DownloadStringAsync(new Uri(site, UriKind.Absolute));
+
+            return data;
+        }
+        
+        /// <summary>A great way of simplifying HTTP GET requests. Developed by Vangos.
+        /// Changed by Hazardius 22.06.2012 .
+        /// Found on:
+        /// http://studentguru.gr/b/vangos/archive/2011/05/17/an-http-post-request-client-for-windows-phone-7.aspx
+        /// Version enabling another sites through absAddress.
+        /// </summary>
+        /// <param name="absAddress">Absolute URL of requested resource.</param>
+        /// <returns>Downloaded data as a string.</returns>
+        internal string HTTPGet(string absAddress)
+        {
+            string data = null;
+            WebClient webClient = new WebClient();
+            webClient.UseDefaultCredentials = true;
+
+            webClient.DownloadStringCompleted += (sender, e) =>
+            {
+                if (e.Error == null)
+                {
+                    data = e.Result;
+                }
+            };
+            webClient.DownloadStringAsync(new Uri(absAddress, UriKind.Absolute));
+
+            return data;
+        }
+
+        /// <summary>An easy-to-use, thread-safe library which works similarly to
+        /// WebClient. Developed by Vangos. Changed by Hazardius 22.06.2012 .
+        /// Found on:
+        /// http://studentguru.gr/b/vangos/archive/2011/05/17/an-http-post-request-client-for-windows-phone-7.aspx
+        /// </summary>
+        /// <param name="parameters">Parameters used in POST.</param>
+        /// <returns>Downloaded data as a string.</returns>
+        internal string HTTPPost(Dictionary<string, object> parameters)
+        {
+            string data = null;
+
+            WindowsPhonePostClient.PostClient proxy = new WindowsPhonePostClient.PostClient(parameters);
+            proxy.DownloadStringCompleted += (sender, e) =>
+            {
+                if (e.Error == null)
+                {
+                    data = e.Result;
+                }
+            };
+            proxy.DownloadStringAsync(new Uri(site, UriKind.Absolute));
+
+            return data;
+        }
+
+        /// <summary>An easy-to-use, thread-safe library which works similarly to
+        /// WebClient. Developed by Vangos. Changed by Hazardius 22.06.2012 .
+        /// Found on:
+        /// http://studentguru.gr/b/vangos/archive/2011/05/17/an-http-post-request-client-for-windows-phone-7.aspx
+        /// </summary>
+        /// <param name="parameters">Parameters used in POST.</param>
+        /// <param name="absAddress">Absolute URL of requested resource.</param>
+        /// <returns>Downloaded data as a string.</returns>
+        internal string HTTPPost(Dictionary<string, object> parameters, string absAddress)
+        {
+            string data = null;
+
+            WindowsPhonePostClient.PostClient proxy = new WindowsPhonePostClient.PostClient(parameters);
+            proxy.DownloadStringCompleted += (sender, e) =>
+            {
+                if (e.Error == null)
+                {
+                    data = e.Result;
+                }
+            };
+            proxy.DownloadStringAsync(new Uri(absAddress, UriKind.Absolute));
+
+            return data;
         }
     }
 }

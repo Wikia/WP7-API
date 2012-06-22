@@ -167,14 +167,14 @@ namespace DotNetMetroWikiaAPI
         /// <summary>ISO 639-1 language codes, used as prefixes to identify Wikimedia
         /// Foundation sites, gathered in one regex-escaped string with "|" as separator.</summary>
         public static string WMLangsStr;
-        /// <summary>Availability of "api.php" MediaWiki extension (bot interface).</summary>
-        public bool botQuery;
-        /// <summary>Versions of "api.php" MediaWiki extension (bot interface) modules.</summary>
-        public Dictionary<string, string> botQueryVersions = new Dictionary<string, string>();
-        /// <summary>Set of lists of pages, produced by bot interface.</summary>
-        public static Dictionary<string, string> botQueryLists = new Dictionary<string, string>();
-        /// <summary>Set of lists of parsed data, produced by bot interface.</summary>
-        public static Dictionary<string, string> botQueryProps = new Dictionary<string, string>();
+        /// <summary>Availability of "api.php" MediaWiki extension (user interface).</summary>
+        public bool userQuery;
+        /// <summary>Versions of "api.php" MediaWiki extension (user interface) modules.</summary>
+        public Dictionary<string, string> userQueryVersions = new Dictionary<string, string>();
+        /// <summary>Set of lists of pages, produced by user interface.</summary>
+        public static Dictionary<string, string> userQueryLists = new Dictionary<string, string>();
+        /// <summary>Set of lists of parsed data, produced by user interface.</summary>
+        public static Dictionary<string, string> userQueryProps = new Dictionary<string, string>();
         /// <summary>Site language.</summary>
         public string language;
         /// <summary>Site language text direction.</summary>
@@ -213,7 +213,7 @@ namespace DotNetMetroWikiaAPI
         }
 
         /// <summary>This constructor uses default site, userName and password. The site URL and
-        /// account data can be stored in UTF8-encoded "Defaults.dat" file in bot's "Cache"
+        /// account data can be stored in UTF8-encoded "Defaults.dat" file in user's "Cache"
         /// subdirectory.</summary>
         /// <returns>Returns Site object.</returns>
         public Site()
@@ -310,7 +310,7 @@ namespace DotNetMetroWikiaAPI
             //webReq.Proxy.Credentials = CredentialCache.DefaultCredentials;
             //webClient.UseDefaultCredentials = true;
             //webReq.ContentType = User.webContentType;
-            //webReq.UserAgent = User.botVer;
+            //webReq.UserAgent = User.userVer;
             string data;
             if (User.unsafeHttpHeaderParsingUsed == 0)
             {
@@ -546,41 +546,41 @@ namespace DotNetMetroWikiaAPI
             redirectRE = new Regex(@"(?i)^#(?:" + redirectTag + @")\s*:?\s*\[\[(.+?)(\|.+)?]]",
                 RegexOptions.Compiled);
             Console.WriteLine(User.Msg("Site: {0} ({1})"), name, generator);
-            string botQueryUriStr = site + indexPath + "api.php?version";
+            string userQueryUriStr = site + indexPath + "api.php?version";
             string respStr;
             try
             {
-                respStr = HTTPGet(botQueryUriStr); //GetPageHTM(botQueryUriStr);
+                respStr = HTTPGet(userQueryUriStr);
                 if (respStr.Contains("<title>MediaWiki API</title>"))
                 {
-                    botQuery = true;
-                    Regex botQueryVersionsRE = new Regex(@"(?i)<b><i>\$" +
+                    userQuery = true;
+                    Regex userQueryVersionsRE = new Regex(@"(?i)<b><i>\$" +
                         @"Id: (\S+) (\d+) (.+?) \$</i></b>");
-                    foreach (Match m in botQueryVersionsRE.Matches(respStr))
-                        botQueryVersions[m.Groups[1].ToString()] = m.Groups[2].ToString();
-                    if (!botQueryVersions.ContainsKey("ApiMain.php") && ver > new Version(1, 17))
+                    foreach (Match m in userQueryVersionsRE.Matches(respStr))
+                        userQueryVersions[m.Groups[1].ToString()] = m.Groups[2].ToString();
+                    if (!userQueryVersions.ContainsKey("ApiMain.php") && ver > new Version(1, 17))
                     {
                         // if versioning system is broken
-                        botQueryVersions["ApiQueryCategoryMembers.php"] = "104449";
-                        botQueryVersions["ApiQueryRevisions.php"] = "104449";
+                        userQueryVersions["ApiQueryCategoryMembers.php"] = "104449";
+                        userQueryVersions["ApiQueryRevisions.php"] = "104449";
                     }
                 }
             }
             catch (WebException)
             {
-                botQuery = false;
+                userQuery = false;
             }
-            if ((botQuery == false || !botQueryVersions.ContainsKey("ApiQueryCategoryMembers.php"))
+            if ((userQuery == false || !userQueryVersions.ContainsKey("ApiQueryCategoryMembers.php"))
                 && ver < new Version(1, 16))
             {
-                botQueryUriStr = site + indexPath + "query.php";
+                userQueryUriStr = site + indexPath + "query.php";
                 try
                 {
-                    respStr = HTTPGet(botQueryUriStr); //GetPageHTM(botQueryUriStr);
+                    respStr = HTTPGet(userQueryUriStr);
                     if (respStr.Contains("<title>MediaWiki Query Interface</title>"))
                     {
-                        botQuery = true;
-                        botQueryVersions["query.php"] = "Unknown";
+                        userQuery = true;
+                        userQueryVersions["query.php"] = "Unknown";
                     }
                 }
                 catch (WebException)
@@ -588,6 +588,337 @@ namespace DotNetMetroWikiaAPI
                     return;
                 }
             }
+        }
+
+        /// <summary>Loads default English namespace names for site.</summary>
+        public void LoadDefaults()
+        {
+            if (wikiNSpaces.Count != 0 && WMSites.Count != 0)
+                return;
+
+            string[] wikiNSNames = { "Media", "Special", "", "Talk", "User", "User talk", name,
+				name + " talk", "Image", "Image talk", "MediaWiki", "MediaWiki talk", "Template",
+				"Template talk", "Help", "Help talk", "Category", "Category talk" };
+            for (int i = -2, j = 0; i < 16; i++, j++)
+                wikiNSpaces.Add(i.ToString(), wikiNSNames[j]);
+            wikiNSpaces.Remove("0");
+
+            WMSites.Add("w", "wikipedia"); WMSites.Add("wikt", "wiktionary");
+            WMSites.Add("b", "wikibooks"); WMSites.Add("n", "wikinews");
+            WMSites.Add("q", "wikiquote"); WMSites.Add("s", "wikisource");
+            foreach (KeyValuePair<string, string> s in WMSites)
+                WMSitesStr += s.Key + "|" + s.Value + "|";
+
+            // Revised 2010-07-02
+            mediaWikiVars = new string[] { "currentmonth","currentmonthname","currentmonthnamegen",
+				"currentmonthabbrev","currentday2","currentdayname","currentyear","currenttime",
+				"currenthour","localmonth","localmonthname","localmonthnamegen","localmonthabbrev",
+				"localday","localday2","localdayname","localyear","localtime","localhour",
+				"numberofarticles","numberoffiles","sitename","server","servername","scriptpath",
+				"pagename","pagenamee","fullpagename","fullpagenamee","namespace","namespacee",
+				"currentweek","currentdow","localweek","localdow","revisionid","revisionday",
+				"revisionday2","revisionmonth","revisionyear","revisiontimestamp","subpagename",
+				"subpagenamee","talkspace","talkspacee","subjectspace","dirmark","directionmark",
+				"subjectspacee","talkpagename","talkpagenamee","subjectpagename","subjectpagenamee",
+				"numberofusers","rawsuffix","newsectionlink","numberofpages","currentversion",
+				"basepagename","basepagenamee","urlencode","currenttimestamp","localtimestamp",
+				"directionmark","language","contentlanguage","pagesinnamespace","numberofadmins",
+				"currentday","numberofarticles:r","numberofpages:r","magicnumber",
+				"numberoffiles:r", "numberofusers:r", "numberofadmins:r", "numberofactiveusers",
+				"numberofactiveusers:r" };
+            parserFunctions = new string[] { "ns:", "localurl:", "localurle:", "urlencode:",
+				"anchorencode:", "fullurl:", "fullurle:",  "grammar:", "plural:", "lc:", "lcfirst:",
+				"uc:", "ucfirst:", "formatnum:", "padleft:", "padright:", "#language:",
+				"displaytitle:", "defaultsort:", "#if:", "#if:", "#switch:", "#ifexpr:",
+				"numberingroup:", "pagesinns:", "pagesincat:", "pagesincategory:", "pagesize:",
+				"gender:", "filepath:", "#special:", "#tag:" };
+            templateModifiers = new string[] { ":", "int:", "msg:", "msgnw:", "raw:", "subst:" };
+            // Revised 2010-07-02
+            iwikiLinksOrderByLocalFW = new string[] {
+				"ace", "af", "ak", "als", "am", "ang", "ab", "ar", "an", "arc",
+				"roa-rup", "frp", "as", "ast", "gn", "av", "ay", "az", "id", "ms",
+				"bm", "bn", "zh-min-nan", "nan", "map-bms", "jv", "su", "ba", "be",
+				"be-x-old", "bh", "bcl", "bi", "bar", "bo", "bs", "br", "bug", "bg",
+				"bxr", "ca", "ceb", "cv", "cs", "ch", "cbk-zam", "ny", "sn", "tum",
+				"cho", "co", "cy", "da", "dk", "pdc", "de", "dv", "nv", "dsb", "na",
+				"dz", "mh", "et", "el", "eml", "en", "myv", "es", "eo", "ext", "eu",
+				"ee", "fa", "hif", "fo", "fr", "fy", "ff", "fur", "ga", "gv", "sm",
+				"gd", "gl", "gan", "ki", "glk", "gu", "got", "hak", "xal", "ko",
+				"ha", "haw", "hy", "hi", "ho", "hsb", "hr", "io", "ig", "ilo",
+				"bpy", "ia", "ie", "iu", "ik", "os", "xh", "zu", "is", "it", "he",
+				"kl", "kn", "kr", "pam", "ka", "ks", "csb", "kk", "kw", "rw", "ky",
+				"rn", "sw", "kv", "kg", "ht", "ku", "kj", "lad", "lbe", "lo", "la",
+				"lv", "to", "lb", "lt", "lij", "li", "ln", "jbo", "lg", "lmo", "hu",
+				"mk", "mg", "ml", "krc", "mt", "mi", "mr", "arz", "mzn", "cdo",
+				"mwl", "mdf", "mo", "mn", "mus", "my", "nah", "fj", "nl", "nds-nl",
+				"cr", "ne", "new", "ja", "nap", "ce", "pih", "no", "nb", "nn",
+				"nrm", "nov", "ii", "oc", "mhr", "or", "om", "ng", "hz", "uz", "pa",
+				"pi", "pag", "pnb", "pap", "ps", "km", "pcd", "pms", "nds", "pl",
+				"pnt", "pt", "aa", "kaa", "crh", "ty", "ksh", "ro", "rmy", "rm",
+				"qu", "ru", "sah", "se", "sa", "sg", "sc", "sco", "stq", "st", "tn",
+				"sq", "scn", "si", "simple", "sd", "ss", "sk", "sl", "cu", "szl",
+				"so", "ckb", "srn", "sr", "sh", "fi", "sv", "tl", "ta", "kab",
+				"roa-tara", "tt", "te", "tet", "th", "vi", "ti", "tg", "tpi",
+				"tokipona", "tp", "chr", "chy", "ve", "tr", "tk", "tw", "udm", "uk",
+				"ur", "ug", "za", "vec", "vo", "fiu-vro", "wa", "zh-classical",
+				"vls", "war", "wo", "wuu", "ts", "yi", "yo", "zh-yue", "diq", "zea",
+				"bat-smg", "zh", "zh-tw", "zh-cn"
+			};
+            iwikiLinksOrderByLocal = new string[] {
+				"ace", "af", "ak", "als", "am", "ang", "ab", "ar", "an", "arc",
+				"roa-rup", "frp", "as", "ast", "gn", "av", "ay", "az", "bm", "bn",
+				"zh-min-nan", "nan", "map-bms", "ba", "be", "be-x-old", "bh", "bcl",
+				"bi", "bar", "bo", "bs", "br", "bg", "bxr", "ca", "cv", "ceb", "cs",
+				"ch", "cbk-zam", "ny", "sn", "tum", "cho", "co", "cy", "da", "dk",
+				"pdc", "de", "dv", "nv", "dsb", "dz", "mh", "et", "el", "eml", "en",
+				"myv", "es", "eo", "ext", "eu", "ee", "fa", "hif", "fo", "fr", "fy",
+				"ff", "fur", "ga", "gv", "gd", "gl", "gan", "ki", "glk", "gu",
+				"got", "hak", "xal", "ko", "ha", "haw", "hy", "hi", "ho", "hsb",
+				"hr", "io", "ig", "ilo", "bpy", "id", "ia", "ie", "iu", "ik", "os",
+				"xh", "zu", "is", "it", "he", "jv", "kl", "kn", "kr", "pam", "krc",
+				"ka", "ks", "csb", "kk", "kw", "rw", "ky", "rn", "sw", "kv", "kg",
+				"ht", "ku", "kj", "lad", "lbe", "lo", "la", "lv", "lb", "lt", "lij",
+				"li", "ln", "jbo", "lg", "lmo", "hu", "mk", "mg", "ml", "mt", "mi",
+				"mr", "arz", "mzn", "ms", "cdo", "mwl", "mdf", "mo", "mn", "mus",
+				"my", "nah", "na", "fj", "nl", "nds-nl", "cr", "ne", "new", "ja",
+				"nap", "ce", "pih", "no", "nb", "nn", "nrm", "nov", "ii", "oc",
+				"mhr", "or", "om", "ng", "hz", "uz", "pa", "pi", "pag", "pnb",
+				"pap", "ps", "km", "pcd", "pms", "tpi", "nds", "pl", "tokipona",
+				"tp", "pnt", "pt", "aa", "kaa", "crh", "ty", "ksh", "ro", "rmy",
+				"rm", "qu", "ru", "sah", "se", "sm", "sa", "sg", "sc", "sco", "stq",
+				"st", "tn", "sq", "scn", "si", "simple", "sd", "ss", "sk", "cu",
+				"sl", "szl", "so", "ckb", "srn", "sr", "sh", "su", "fi", "sv", "tl",
+				"ta", "kab", "roa-tara", "tt", "te", "tet", "th", "ti", "tg", "to",
+				"chr", "chy", "ve", "tr", "tk", "tw", "udm", "bug", "uk", "ur",
+				"ug", "za", "vec", "vi", "vo", "fiu-vro", "wa", "zh-classical",
+				"vls", "war", "wo", "wuu", "ts", "yi", "yo", "zh-yue", "diq", "zea",
+				"bat-smg", "zh", "zh-tw", "zh-cn"
+			};
+            iwikiLinksOrderByLatinFW = new string[] {
+				"ace", "af", "ak", "als", "am", "ang", "ab", "ar", "an", "arc",
+				"roa-rup", "frp", "arz", "as", "ast", "gn", "av", "ay", "az", "id",
+				"ms", "bg", "bm", "zh-min-nan", "nan", "map-bms", "jv", "su", "ba",
+				"be", "be-x-old", "bh", "bcl", "bi", "bn", "bo", "bar", "bs", "bpy",
+				"br", "bug", "bxr", "ca", "ceb", "ch", "cbk-zam", "sn", "tum", "ny",
+				"cho", "chr", "co", "cy", "cv", "cs", "da", "dk", "pdc", "de", "nv",
+				"dsb", "na", "dv", "dz", "mh", "et", "el", "eml", "en", "myv", "es",
+				"eo", "ext", "eu", "ee", "fa", "hif", "fo", "fr", "fy", "ff", "fur",
+				"ga", "gv", "sm", "gd", "gl", "gan", "ki", "glk", "got", "gu", "ha",
+				"hak", "xal", "haw", "he", "hi", "ho", "hsb", "hr", "hy", "io",
+				"ig", "ii", "ilo", "ia", "ie", "iu", "ik", "os", "xh", "zu", "is",
+				"it", "ja", "ka", "kl", "kr", "pam", "krc", "csb", "kk", "kw", "rw",
+				"ky", "rn", "sw", "km", "kn", "ko", "kv", "kg", "ht", "ks", "ku",
+				"kj", "lad", "lbe", "la", "lv", "to", "lb", "lt", "lij", "li", "ln",
+				"lo", "jbo", "lg", "lmo", "hu", "mk", "mg", "mt", "mi", "cdo",
+				"mwl", "ml", "mdf", "mo", "mn", "mr", "mus", "my", "mzn", "nah",
+				"fj", "ne", "nl", "nds-nl", "cr", "new", "nap", "ce", "pih", "no",
+				"nb", "nn", "nrm", "nov", "oc", "mhr", "or", "om", "ng", "hz", "uz",
+				"pa", "pag", "pap", "pi", "pcd", "pms", "nds", "pnb", "pl", "pt",
+				"pnt", "ps", "aa", "kaa", "crh", "ty", "ksh", "ro", "rmy", "rm",
+				"qu", "ru", "sa", "sah", "se", "sg", "sc", "sco", "sd", "stq", "st",
+				"tn", "sq", "si", "scn", "simple", "ss", "sk", "sl", "cu", "szl",
+				"so", "ckb", "srn", "sr", "sh", "fi", "sv", "ta", "tl", "kab",
+				"roa-tara", "tt", "te", "tet", "th", "ti", "vi", "tg", "tokipona",
+				"tp", "tpi", "chy", "ve", "tr", "tk", "tw", "udm", "uk", "ur", "ug",
+				"za", "vec", "vo", "fiu-vro", "wa", "vls", "war", "wo", "wuu", "ts",
+				"yi", "yo", "diq", "zea", "zh", "zh-tw", "zh-cn", "zh-classical",
+				"zh-yue", "bat-smg"
+			};
+            userQueryLists.Add("allpages", "ap"); userQueryLists.Add("alllinks", "al");
+            userQueryLists.Add("allusers", "au"); userQueryLists.Add("backlinks", "bl");
+            userQueryLists.Add("categorymembers", "cm"); userQueryLists.Add("embeddedin", "ei");
+            userQueryLists.Add("imageusage", "iu"); userQueryLists.Add("logevents", "le");
+            userQueryLists.Add("recentchanges", "rc"); userQueryLists.Add("usercontribs", "uc");
+            userQueryLists.Add("watchlist", "wl"); userQueryLists.Add("exturlusage", "eu");
+            userQueryProps.Add("info", "in"); userQueryProps.Add("revisions", "rv");
+            userQueryProps.Add("links", "pl"); userQueryProps.Add("langlinks", "ll");
+            userQueryProps.Add("images", "im"); userQueryProps.Add("imageinfo", "ii");
+            userQueryProps.Add("templates", "tl"); userQueryProps.Add("categories", "cl");
+            userQueryProps.Add("extlinks", "el"); userQueryLists.Add("search", "sr");
+        }
+
+        /// <summary>Logs in SourceForge.net and retrieves cookies for work with
+        /// SourceForge-hosted wikis. That's a special version of LogIn() function.</summary>
+        public void LogInSourceForge()
+        {
+            string postData = string.Format("form_loginname={0}&form_pw={1}" +
+                "&ssl_status=&form_rememberme=yes&login=Log+in",
+                HttpUtility.UrlEncode(userName.ToLower()), HttpUtility.UrlEncode(userPass));
+            string respStr = PostDataAndGetResultHTM("https://sourceforge.net/account/login.php",
+                postData, true, false);
+            if (respStr.Contains(" class=\"error\""))
+                throw new WikiUserException(
+                    "\n\n" + User.Msg("Login failed. Check your username and password.") + "\n");
+            Console.WriteLine(User.Msg("Logged in SourceForge as {0}."), userName);
+        }
+
+        /// <summary>Logs in via api.php and retrieves cookies.</summary>
+        public void LogInViaApi()
+        {
+            string postData = string.Format("lgname={0}&lgpassword={1}&lgdomain={2}",
+                HttpUtility.UrlEncode(userName), HttpUtility.UrlEncode(userPass),
+                HttpUtility.UrlEncode(userDomain));
+            string respStr = PostDataAndGetResultHTM(site + indexPath +
+                "api.php?action=login&format=xml", postData, true, false);
+            if (respStr.Contains("result=\"Success\""))
+            {
+                Console.WriteLine(User.Msg("Logged in as {0}."), userName);
+                return;
+            }
+
+            int tokenPos = respStr.IndexOf("token=\"");
+            if (tokenPos < 1)
+                throw new WikiUserException(
+                    "\n\n" + User.Msg("Login failed. Check your username and password.") + "\n");
+            string loginToken = respStr.Substring(tokenPos + 7, 32);
+            postData += "&lgtoken=" + HttpUtility.UrlEncode(loginToken);
+            respStr = PostDataAndGetResultHTM(site + indexPath +
+                "api.php?action=login&format=xml", postData, true, false);
+            if (!respStr.Contains("result=\"Success\""))
+                throw new WikiUserException(
+                    "\n\n" + User.Msg("Login failed. Check your username and password.") + "\n");
+            Console.WriteLine(User.Msg("Logged in as {0}."), userName);
+        }
+
+        /// <summary>Logs in and retrieves cookies.</summary>
+        public void LogIn()
+        {
+            string loginPageSrc = PostDataAndGetResultHTM(site + indexPath +
+                "index.php?title=Special:Userlogin", "", true, true);
+            string loginToken = "";
+            int loginTokenPos = loginPageSrc.IndexOf(
+                "<input type=\"hidden\" name=\"wpLoginToken\" value=\"");
+            if (loginTokenPos != -1)
+                loginToken = loginPageSrc.Substring(loginTokenPos + 48, 32);
+
+            string postData = string.Format("wpName={0}&wpPassword={1}&wpDomain={2}" +
+                "&wpLoginToken={3}&wpRemember=1&wpLoginattempt=Log+in",
+                HttpUtility.UrlEncode(userName), HttpUtility.UrlEncode(userPass),
+                HttpUtility.UrlEncode(userDomain), HttpUtility.UrlEncode(loginToken));
+            string respStr = PostDataAndGetResultHTM(site + indexPath +
+                "index.php?title=Special:Userlogin&action=submitlogin&type=login",
+                postData, true, false);
+            if (respStr.Contains("<div class=\"errorbox\">"))
+                throw new WikiUserException(
+                    "\n\n" + User.Msg("Login failed. Check your username and password.") + "\n");
+            Console.WriteLine(User.Msg("Logged in as {0}."), userName);
+        }
+
+        /// <summary>This internal function gets the hypertext markup (HTM) of wiki-page.</summary>
+        /// <param name="pageURL">Absolute or relative URL of page to get.</param>
+        /// <returns>Returns HTM source code.</returns>
+        public string GetPageHTM(string pageURL)
+        {
+            return PostDataAndGetResultHTM(pageURL, "", false, true);
+        }
+
+        /// <summary>This internal function posts specified string to requested resource
+        /// and gets the result hypertext markup (HTM).</summary>
+        /// <param name="pageURL">Absolute or relative URL of page to get.</param>
+        /// <param name="postData">String to post to site with web request.</param>
+        /// <returns>Returns code of hypertext markup (HTM).</returns>
+        public string PostDataAndGetResultHTM(string pageURL, string postData)
+        {
+            return PostDataAndGetResultHTM(pageURL, postData, false, true);
+        }
+
+        /// <summary>This internal function posts specified string to requested resource
+        /// and gets the result hypertext markup (HTM).</summary>
+        /// <param name="pageURL">Absolute or relative URL of page to get.</param>
+        /// <param name="postData">String to post to site with web request.</param>
+        /// <param name="getCookies">If set to true, gets cookies from web response and
+        /// saves it in site.cookies container.</param>
+        /// <param name="allowRedirect">Allow auto-redirection of web request by server.</param>
+        /// <returns>Returns code of hypertext markup (HTM).</returns>
+        public string PostDataAndGetResultHTM(string pageURL, string postData, bool getCookies,
+            bool allowRedirect)
+        {
+            if (string.IsNullOrEmpty(pageURL))
+                throw new WikiUserException(User.Msg("No URL specified."));
+            if (!pageURL.StartsWith(site) && !site.Contains("sourceforge"))
+                pageURL = site + pageURL;
+            HttpWebRequest webReq = (HttpWebRequest)WebRequest.Create(pageURL);
+            webReq.Proxy.Credentials = CredentialCache.DefaultCredentials;
+            webReq.UseDefaultCredentials = true;
+            webReq.ContentType = Bot.webContentType;
+            webReq.UserAgent = Bot.botVer;
+            webReq.AllowAutoRedirect = allowRedirect;
+            if (cookies.Count == 0)
+                webReq.CookieContainer = new CookieContainer();
+            else
+                webReq.CookieContainer = cookies;
+            if (User.unsafeHttpHeaderParsingUsed == 0)
+            {
+                webReq.ProtocolVersion = HttpVersion.Version10;
+                webReq.KeepAlive = false;
+            }
+            webReq.Headers.Add(HttpRequestHeader.AcceptEncoding, "gzip,deflate");
+            if (!string.IsNullOrEmpty(postData))
+            {
+                if (User.isRunningOnMono)	// Mono bug 636219 evasion
+                    webReq.AllowAutoRedirect = false;
+                // https://bugzilla.novell.com/show_bug.cgi?id=636219
+                webReq.Method = "POST";
+                //webReq.Timeout = 180000;
+                byte[] postBytes = Encoding.UTF8.GetBytes(postData);
+                webReq.ContentLength = postBytes.Length;
+                Stream reqStrm = webReq.GetRequestStream();
+                reqStrm.Write(postBytes, 0, postBytes.Length);
+                reqStrm.Close();
+            }
+            HttpWebResponse webResp = null;
+            for (int errorCounter = 0; true; errorCounter++)
+            {
+                try
+                {
+                    webResp = (HttpWebResponse)webReq.GetResponse();
+                    break;
+                }
+                catch (WebException e)
+                {
+                    string message = e.Message;
+                    if (webReq.AllowAutoRedirect == false &&
+                        webResp.StatusCode == HttpStatusCode.Redirect)	// Mono bug 636219 evasion
+                        return "";
+                    if (Regex.IsMatch(message, ": \\(50[02349]\\) "))
+                    {		// Remote problem
+                        if (errorCounter > User.retryTimes)
+                            throw;
+                        Console.Error.WriteLine(message + " " + User.Msg("Retrying in 60 seconds."));
+                        Thread.Sleep(60000);
+                    }
+                    else if (message.Contains("Section=ResponseStatusLine"))
+                    {	// Squid problem
+                        Bot.SwitchUnsafeHttpHeaderParsing(true);
+                        //Console.Write("|");
+                        return PostDataAndGetResultHTM(pageURL, postData, getCookies,
+                            allowRedirect);
+                    }
+                    else
+                        throw;
+                }
+            }
+            Stream respStream = webResp.GetResponseStream();
+            if (webResp.ContentEncoding.ToLower().Contains("gzip"))
+                respStream = new GZipStream(respStream, CompressionMode.Decompress);
+            else if (webResp.ContentEncoding.ToLower().Contains("deflate"))
+                respStream = new DeflateStream(respStream, CompressionMode.Decompress);
+            if (getCookies == true)
+            {
+                Uri siteUri = new Uri(site);
+                foreach (Cookie cookie in webResp.Cookies)
+                {
+                    if (cookie.Domain[0] == '.' &&
+                        cookie.Domain.Substring(1) == siteUri.Host)
+                        cookie.Domain = cookie.Domain.TrimStart(new char[] { '.' });
+                    cookies.Add(cookie);
+                }
+            }
+            StreamReader strmReader = new StreamReader(respStream, Encoding.UTF8);
+            string respStr = strmReader.ReadToEnd();
+            strmReader.Close();
+            webResp.Close();
+            return respStr;
         }
 
         // Another methods added to make it work on WP7

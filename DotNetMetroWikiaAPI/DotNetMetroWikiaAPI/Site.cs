@@ -838,10 +838,10 @@ namespace DotNetMetroWikiaAPI
             if (!pageURL.StartsWith(site) && !site.Contains("sourceforge"))
                 pageURL = site + pageURL;
             HttpWebRequest webReq = (HttpWebRequest)WebRequest.Create(pageURL);
-            webReq.Proxy.Credentials = CredentialCache.DefaultCredentials;
+            //webReq.Proxy.Credentials = CredentialCache.DefaultCredentials;
             webReq.UseDefaultCredentials = true;
-            webReq.ContentType = Bot.webContentType;
-            webReq.UserAgent = Bot.botVer;
+            webReq.ContentType = User.webContentType;
+            webReq.UserAgent = User.userVer;
             webReq.AllowAutoRedirect = allowRedirect;
             if (cookies.Count == 0)
                 webReq.CookieContainer = new CookieContainer();
@@ -849,10 +849,10 @@ namespace DotNetMetroWikiaAPI
                 webReq.CookieContainer = cookies;
             if (User.unsafeHttpHeaderParsingUsed == 0)
             {
-                webReq.ProtocolVersion = HttpVersion.Version10;
-                webReq.KeepAlive = false;
+                //webReq.ProtocolVersion = HttpVersion.Version10;
+                //webReq.KeepAlive = false;
             }
-            webReq.Headers.Add(HttpRequestHeader.AcceptEncoding, "gzip,deflate");
+            //webReq.Headers.Add(HttpRequestHeader.AcceptEncoding, "gzip,deflate");
             if (!string.IsNullOrEmpty(postData))
             {
                 if (User.isRunningOnMono)	// Mono bug 636219 evasion
@@ -860,18 +860,21 @@ namespace DotNetMetroWikiaAPI
                 // https://bugzilla.novell.com/show_bug.cgi?id=636219
                 webReq.Method = "POST";
                 //webReq.Timeout = 180000;
-                byte[] postBytes = Encoding.UTF8.GetBytes(postData);
-                webReq.ContentLength = postBytes.Length;
-                Stream reqStrm = webReq.GetRequestStream();
-                reqStrm.Write(postBytes, 0, postBytes.Length);
-                reqStrm.Close();
+                //byte[] postBytes = Encoding.UTF8.GetBytes(postData);
+                //webReq.ContentLength = postBytes.Length;
+                //Stream reqStrm = webReq.GetRequestStream();
+                //reqStrm.Write(postBytes, 0, postBytes.Length);
+                //reqStrm.Close();
             }
             HttpWebResponse webResp = null;
+            string respStr = null;
             for (int errorCounter = 0; true; errorCounter++)
             {
                 try
                 {
-                    webResp = (HttpWebResponse)webReq.GetResponse();
+                    respStr = HTTPPost((new Dictionary<string, object>()), pageURL);
+
+                    //webResp = (HttpWebResponse)webReq.GetResponse();
                     break;
                 }
                 catch (WebException e)
@@ -889,7 +892,7 @@ namespace DotNetMetroWikiaAPI
                     }
                     else if (message.Contains("Section=ResponseStatusLine"))
                     {	// Squid problem
-                        Bot.SwitchUnsafeHttpHeaderParsing(true);
+                        User.SwitchUnsafeHttpHeaderParsing(true);
                         //Console.Write("|");
                         return PostDataAndGetResultHTM(pageURL, postData, getCookies,
                             allowRedirect);
@@ -898,11 +901,11 @@ namespace DotNetMetroWikiaAPI
                         throw;
                 }
             }
-            Stream respStream = webResp.GetResponseStream();
-            if (webResp.ContentEncoding.ToLower().Contains("gzip"))
-                respStream = new GZipStream(respStream, CompressionMode.Decompress);
-            else if (webResp.ContentEncoding.ToLower().Contains("deflate"))
-                respStream = new DeflateStream(respStream, CompressionMode.Decompress);
+            //Stream respStream = webResp.GetResponseStream();
+            //if (webResp.ContentEncoding.ToLower().Contains("gzip"))
+            //    respStream = new GZipStream(respStream, CompressionMode.Decompress);
+            //else if (webResp.ContentEncoding.ToLower().Contains("deflate"))
+            //    respStream = new DeflateStream(respStream, CompressionMode.Decompress);
             if (getCookies == true)
             {
                 Uri siteUri = new Uri(site);
@@ -911,12 +914,12 @@ namespace DotNetMetroWikiaAPI
                     if (cookie.Domain[0] == '.' &&
                         cookie.Domain.Substring(1) == siteUri.Host)
                         cookie.Domain = cookie.Domain.TrimStart(new char[] { '.' });
-                    cookies.Add(cookie);
+                    cookies.Add(siteUri, cookie);
                 }
             }
-            StreamReader strmReader = new StreamReader(respStream, Encoding.UTF8);
-            string respStr = strmReader.ReadToEnd();
-            strmReader.Close();
+            //StreamReader strmReader = new StreamReader(respStream, Encoding.UTF8);
+            //string respStr = strmReader.ReadToEnd();
+            //strmReader.Close();
             webResp.Close();
             return respStr;
         }

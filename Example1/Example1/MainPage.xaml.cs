@@ -10,6 +10,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Shapes;
 using Microsoft.Phone.Controls;
+using DotNetMetroWikiaAPI;
 
 namespace Example1
 {
@@ -23,7 +24,15 @@ namespace Example1
 
         private void button1_Click(object sender, RoutedEventArgs e)
         {
-            NavigationService.Navigate(new Uri("/Images.xaml", UriKind.Relative));
+            try
+            {
+                Site wikia = new Site("http://wikia.com", textBox1.Text, passwordBox1.Password);
+                NavigationService.Navigate(new Uri("/Images.xaml", UriKind.Relative));
+            }
+            catch (Exception omg)
+            {
+                textBox1.Text = omg.ToString();
+            }
         }
     }
 }

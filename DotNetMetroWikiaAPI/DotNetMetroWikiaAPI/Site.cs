@@ -283,13 +283,15 @@ namespace DotNetMetroWikiaAPI
         /// saves paths to file.</summary>
         public void GetPaths()
         {
+            Console.WriteLine("TEST1");
             if (!site.StartsWith("http"))
                 site = "http://" + site;
             if (User.CountMatches(site, "/", false) == 3 && site.EndsWith("/"))
                 site = site.Substring(0, site.Length - 1);
             string filePathName = "Cache" + System.IO.Path.DirectorySeparatorChar +
                 HttpUtility.UrlEncode(site.Replace("://", ".").Replace("/", ".")) + ".dat";
-            if (File.Exists(filePathName) == true)
+            Console.WriteLine("TEST2");
+            if (isf.FileExists(filePathName) == true)
             {
                 string[] lines = ReadAllLines(filePathName, Encoding.UTF8);
                 if (lines.GetUpperBound(0) >= 4)
@@ -414,15 +416,15 @@ namespace DotNetMetroWikiaAPI
                 }
                 catch (Exception)
                 {
-                    foreach (CultureInfo ci in 
-                        CultureInfo.GetCultures(CultureTypes.SpecificCultures))
-                    {
-                        if (langCulture.Equals(ci.Parent))
-                        {
-                            regCulture = ci;
-                            break;
-                        }
-                    }
+                    //foreach (CultureInfo ci in 
+                    //    CultureInfo.GetCultures(CultureTypes.SpecificCultures))
+                    //{
+                    //    if (langCulture.Equals(ci.Parent))
+                    //    {
+                    //        regCulture = ci;
+                    //        break;
+                    //    }
+                    //}
                     if (regCulture == null)
                         regCulture = CultureInfo.InvariantCulture;
                 }

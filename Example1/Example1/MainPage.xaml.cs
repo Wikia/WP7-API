@@ -26,7 +26,7 @@ namespace Example1
         {
             try
             {
-                Site wikia = new Site("http://wikia.com", textBox1.Text, passwordBox1.Password);
+                //Site wikia = new Site("http://wikia.com", textBox1.Text, passwordBox1.Password);
                 NavigationService.Navigate(new Uri("/Images.xaml", UriKind.Relative));
             }
             catch (Exception omg)

@@ -68,6 +68,7 @@
     <Compile Include="App.xaml.cs">
       <DependentUpon>App.xaml</DependentUpon>
     </Compile>
+    <Compile Include="ImageProcessing.cs" />
     <Compile Include="Images.xaml.cs">
       <DependentUpon>Images.xaml</DependentUpon>
     </Compile>

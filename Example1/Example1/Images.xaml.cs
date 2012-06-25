@@ -11,6 +11,7 @@ using System.Windows.Media.Animation;
 using System.Windows.Shapes;
 using Microsoft.Phone.Controls;
 using Microsoft.Phone.Shell;
+using System.IO.IsolatedStorage;
 
 namespace Example1
 {
@@ -64,6 +65,11 @@ namespace Example1
         private void ListBoxItem_Tap(object sender, GestureEventArgs e)
         {
 
+        }
+
+        private void Grid_DoubleTap(object sender, GestureEventArgs e)
+        {
+            ImageProcessing.saveGridColumn((Grid)sender, 0, "/Images/1.jpg");
         }
     }
 }

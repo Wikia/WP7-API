@@ -46,6 +46,7 @@ using System.IO;
 using System.Threading;
 using System.ComponentModel;
 using System.Threading.Tasks;
+using RestSharp;
 
 namespace DotNetMetroWikiaAPI
 {
@@ -873,9 +874,24 @@ namespace DotNetMetroWikiaAPI
             {
                 try
                 {
+                    var client = new RestClient(site);
+                    var request = new RestRequest("api.php", Method.POST);
                     int qMarkIndex = pageURL.IndexOf('?');
+                    string[] parameters = pageURL.Split('&');
+                    foreach (string param in parameters)
+                    {
+                        int eqs = param.IndexOf('=');
+                        request.AddParameter(param.Substring(0, eqs), param.Substring(eqs + 1));
+                    }
 
-                    respStr = await HTTPPost(pageURL.Substring(qMarkIndex + 1);
+                    RestResponse responce = await client.ExecuteAsync(request,  response =>
+                    {
+                        ;
+                    });
+
+                    respStr = responce.Content;
+
+                    //respStr = await HTTPPost(pageURL.Substring(qMarkIndex + 1));
 
                     //webResp = (HttpWebResponse)webReq.GetResponse();
                     break;
@@ -985,66 +1001,6 @@ namespace DotNetMetroWikiaAPI
                     writer.Close();
                 }
             }
-        }
-
-        /// <summary>A HTTP GET request. Developed by  Hazardius .</summary>
-        /// <returns>Downloaded data as a string.</returns>
-        internal async Task<string> HTTPGet()
-        {
-            string data;
-            WebClient webClient = new WebClient();
-            webClient.UseDefaultCredentials = true;
-
-            data = await webClient.DownloadStringTaskAsync(new Uri(site, UriKind.Absolute));
-
-            return data;
-        }
-        
-        /// <summary>A HTTP GET request. Developed by Hazardius .</summary>
-        /// <param name="absAddress">Absolute URL of requested resource.</param>
-        /// <returns>Downloaded data as a string.</returns>
-        internal async Task<string> HTTPGet(string absAddress)
-        {
-            string data = null;
-            WebClient webClient = new WebClient();
-            webClient.UseDefaultCredentials = true;
-
-            data = await webClient.DownloadStringTaskAsync(new Uri(absAddress, UriKind.Absolute));
-
-            return data;
-        }
-
-        /// <summary>A HTTP POST request. Developed by Hazardius .</summary>
-        /// <param name="parameters">Data to send in POST.</param>
-        /// <returns>Downloaded data as a string.</returns>
-        internal async Task<string> HTTPPost(string parameters)
-        {
-            string data = null;
-
-            WebClient proxy = new WebClient();
-            data = await proxy.UploadStringTaskAsync(site + "/api.php", parameters);
-
-            //WindowsPhonePostClient.PostClient proxy = new WindowsPhonePostClient.PostClient(parameters);
-            //data = await proxy.DownloadStringTaskAsync(new Uri(site, UriKind.Absolute));
-
-            return data;
-        }
-
-        /// <summary>A HTTP POST request. Developed by Hazardius .</summary>
-        /// <param name="parameters">Data to send in POST.</param>
-        /// <param name="absAddress">Absolute URL of requested resource.</param>
-        /// <returns>Downloaded data as a string.</returns>
-        internal async Task<string> HTTPPost(string parameters, string absAddress)
-        {
-            string data = null;
-
-            WebClient proxy = new WebClient();
-            data = await proxy.UploadStringTaskAsync(absAddress, parameters);
-
-            //WindowsPhonePostClient.PostClient proxy = new WindowsPhonePostClient.PostClient(parameters);
-            //data = await proxy.DownloadStringTaskAsync(new Uri(absAddress, UriKind.Absolute));
-
-            return data;
         }
     }
 }

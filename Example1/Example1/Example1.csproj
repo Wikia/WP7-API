@@ -54,6 +54,9 @@
     <Reference Include="Microsoft.Phone" />
     <Reference Include="Microsoft.Phone.Controls, Version=7.0.0.0, Culture=neutral, PublicKeyToken=24eec0d8c86cda1e, processorArchitecture=MSIL" />
     <Reference Include="Microsoft.Phone.Interop" />
+    <Reference Include="RestSharp.WindowsPhone">
+      <HintPath>C:\Users\Marcin\Downloads\restsharp-RestSharp-7229095\restsharp-RestSharp-7229095\RestSharp.WindowsPhone.Mango\Bin\Release\RestSharp.WindowsPhone.dll</HintPath>
+    </Reference>
     <Reference Include="System.Windows" />
     <Reference Include="system" />
     <Reference Include="System.Core" />

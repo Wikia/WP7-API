@@ -1,6 +1,5 @@
 ﻿// DotNetMetroWikiaAPI - Wikia API for C# Metro Style Applications
-// Distributed under the terms of the license:
-// TODO : NAME THE USED LICENCE
+//
 // Authors:
 // Hazardius (2012-*) hazardiusam at gmail dot com
 //
@@ -9,7 +8,22 @@
 // Distributed under the terms of the MIT (X11) license: http://www.opensource.org/licenses/mit-license.php
 // Copyright (c) Iaroslav Vassiliev (2006-2012) codedriller@gmail.com
 //
-// Note: Most time it's just codedriller's code made to work on Windows Phone.
+// Distributed under the terms of the license:
+// This program is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License along
+// with this program; if not, write to the Free Software Foundation, Inc.,
+// 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+// http://www.gnu.org/copyleft/gpl.html
+
 
 using System;
 using System.Net;
@@ -30,6 +44,8 @@ using System.Text;
 using System.IO.IsolatedStorage;
 using System.IO;
 using System.Threading;
+using System.ComponentModel;
+using RestSharp;
 
 namespace DotNetMetroWikiaAPI
 {
@@ -57,9 +73,9 @@ namespace DotNetMetroWikiaAPI
         public string capitalization;
         /// <summary>Short relative path to wiki pages (if such alias is set on the server).
         /// See "http://www.mediawiki.org/wiki/Manual:Short URL" for details.</summary>
-        public string wikiPath;		// = "/wiki/";
+        public string wikiPath = "/wiki/";		// = "/wiki/";
         /// <summary>Relative path to "index.php" file on server.</summary>
-        public string indexPath;	// = "/w/";
+        public string indexPath = "/";	// = "/w/";
         /// <summary>User's watchlist. Should be loaded manually with FillFromWatchList function,
         /// if it is necessary.</summary>
         public PageList watchList;
@@ -246,32 +262,16 @@ namespace DotNetMetroWikiaAPI
         public void Initialize()
         {
             xmlNS = new XmlNamespaceManager(xhtmlNameTable);
-            if (site.Contains("sourceforge"))
-            {
-                site = site.Replace("https://", "http://");
-                GetPaths();
-                xmlNS.AddNamespace("ns", xhtmlNSUri);
-                LoadDefaults();
-                LogInSourceForge();
-                site = site.Replace("http://", "https://");
-            }
-            else if (site.Contains("wikia.com"))
-            {
-                GetPaths();
-                xmlNS.AddNamespace("ns", xhtmlNSUri);
-                LoadDefaults();
-                LogInViaApi();
-            }
+            bool isWikia;
+            if (site.Contains("wikia.com"))
+                isWikia = true;
             else
-            {
-                GetPaths();
-                xmlNS.AddNamespace("ns", xhtmlNSUri);
-                LoadDefaults();
-                LogIn();
-            }
-            GetInfo();
-            if (!User.isRunningOnMono)
-                User.DisableCanonicalizingUriAsFilePath();	// .NET bug evasion
+                isWikia = false;
+            GetPaths(isWikia);
+
+            //GetInfo();
+            //if (!User.isRunningOnMono)
+            //    User.DisableCanonicalizingUriAsFilePath();	// .NET bug evasion
         }
 
         private static void asyncHelper(IAsyncResult asyncReceive)
@@ -281,16 +281,15 @@ namespace DotNetMetroWikiaAPI
 
         /// <summary>Gets path to "index.php", short path to pages (if present), and then
         /// saves paths to file.</summary>
-        public void GetPaths()
+        async public void GetPaths(bool isWikia)
         {
-            Console.WriteLine("TEST1");
             if (!site.StartsWith("http"))
                 site = "http://" + site;
             if (User.CountMatches(site, "/", false) == 3 && site.EndsWith("/"))
                 site = site.Substring(0, site.Length - 1);
             string filePathName = "Cache" + System.IO.Path.DirectorySeparatorChar +
                 HttpUtility.UrlEncode(site.Replace("://", ".").Replace("/", ".")) + ".dat";
-            Console.WriteLine("TEST2");
+
             if (isf.FileExists(filePathName) == true)
             {
                 string[] lines = ReadAllLines(filePathName, Encoding.UTF8);
@@ -307,27 +306,18 @@ namespace DotNetMetroWikiaAPI
                 }
             }
             Console.WriteLine(User.Msg("Logging in..."));
-            //WebClient webClient = new WebClient();
-            //webClient.BaseAddress = site;
-            //webReq.Proxy.Credentials = CredentialCache.DefaultCredentials;
-            //webClient.UseDefaultCredentials = true;
-            //webReq.ContentType = User.webContentType;
-            //webReq.UserAgent = User.userVer;
-            string data;
-            if (User.unsafeHttpHeaderParsingUsed == 0)
-            {
-                //webReq.ProtocolVersion = HttpVersion.Version10;
-                //webReq.KeepAlive = false;
-            }
+
             for (int errorCounter = 0; true; errorCounter++)
             {
                 try
                 {
-                    data = HTTPGet();
+                    var client = new RestClient(site);
+                    var request = new RestRequest("index.php");
 
-                    //webClient.OpenReadAsync(webResp);
-                    //webClient.DownloadStringAsync(webResp);
-                    //webResp = (HttpWebResponse)webReq.GetResponse();
+                    client.ExecuteAsync(request, (responce) => {
+                        GetPaths2(responce, isWikia, filePathName, true);
+                    });
+
                     break;
                 }
                 catch (WebException e)
@@ -340,12 +330,6 @@ namespace DotNetMetroWikiaAPI
                         Console.Error.WriteLine(message + " " + User.Msg("Retrying in 60 seconds."));
                         Thread.Sleep(60000);
                     }
-                    else if (message.Contains("Section=ResponseStatusLine"))
-                    {	// Squid problem
-                        User.SwitchUnsafeHttpHeaderParsing(true);
-                        GetPaths();
-                        return;
-                    }
                     else
                     {
                         Console.Error.WriteLine(User.Msg("Can't access the site.") + " " + message);
@@ -353,7 +337,18 @@ namespace DotNetMetroWikiaAPI
                     }
                 }
             }
-            //site = webResp.ResponseUri.Scheme + "://" + webResp.ResponseUri.Authority;
+        }
+
+        private void GetPaths2(IRestResponse e, bool isWikia, string filePathName, bool init)
+        {
+            string data = e.Content;
+            string temp = e.ResponseUri.AbsoluteUri;
+            if (User.CountMatches(temp, "/", false) > 2)
+            {
+                int lastSlash = temp.LastIndexOf('/');
+                temp = temp.Substring(0, lastSlash);
+            }
+            site = temp;
             Regex wikiPathRE = new Regex("(?i)" + Regex.Escape(site) + "(/.+?/).+");
             Regex indexPathRE1 = new Regex("(?i)" + Regex.Escape(site) +
                 "(/.+?/)index\\.php(\\?|/)");
@@ -362,7 +357,7 @@ namespace DotNetMetroWikiaAPI
             Regex xhtmlNSUriRE = new Regex("(?i)<html[^>]*( xmlns=\"(?'xmlns'[^\"]+)\")[^>]*>");
             Regex languageRE = new Regex("(?i)<html[^>]*( lang=\"(?'lang'[^\"]+)\")[^>]*>");
             Regex langDirectionRE = new Regex("(?i)<html[^>]*( dir=\"(?'dir'[^\"]+)\")[^>]*>");
-            string mainPageUri = data;
+            string mainPageUri = site;
             if (mainPageUri.Contains("/index.php?"))
                 indexPath = indexPathRE1.Match(mainPageUri).Groups[1].ToString();
             else
@@ -371,14 +366,7 @@ namespace DotNetMetroWikiaAPI
                 mainPageUri[mainPageUri.Length - 1] != '/' &&
                 User.CountMatches(mainPageUri, "/", false) == 3)
                 wikiPath = "/";
-            // Comment: Hope it won't broke here.
-            //Stream respStream = data;
-            //if (webResp.ContentEncoding.ToLower().Contains("gzip"))
-            //    respStream = new GZipStream(respStream, CompressionMode.Decompress);
-            //else if (webResp.ContentEncoding.ToLower().Contains("deflate"))
-            //    respStream = new DeflateStream(respStream, CompressionMode.Decompress);
-            //StreamReader strmReader = new StreamReader(respStream, Encoding.UTF8);
-            string src = data; //strmReader.ReadToEnd();
+            string src = data;
             if (!site.Contains("wikia.com"))
                 indexPath = indexPathRE2.Match(src).Groups[1].ToString();
             else
@@ -388,10 +376,16 @@ namespace DotNetMetroWikiaAPI
                 xhtmlNSUri = "http://www.w3.org/1999/xhtml";
             language = languageRE.Match(src).Groups["lang"].ToString();
             langDirection = langDirectionRE.Match(src).Groups["dir"].ToString();
-            if (!Directory.Exists("Cache"))
-                Directory.CreateDirectory("Cache");
+            if (!isf.DirectoryExists("Cache"))
+                isf.CreateDirectory("Cache");
             WriteAllText(filePathName, wikiPath + "\r\n" + indexPath + "\r\n" + xhtmlNSUri +
                 "\r\n" + language + "\r\n" + langDirection + "\r\n" + site, Encoding.UTF8);
+
+            if (init)
+            {
+                xmlNS.AddNamespace("ns", xhtmlNSUri);
+                LoadDefaults(isWikia);
+            }
         }
 
         /// <summary>Retrieves metadata and local namespace names from site.</summary>
@@ -399,7 +393,7 @@ namespace DotNetMetroWikiaAPI
         {
             try
             {
-                langCulture = new CultureInfo(language); //language, false);
+                langCulture = new CultureInfo(language);
             }
             catch (Exception)
             {
@@ -412,42 +406,33 @@ namespace DotNetMetroWikiaAPI
                 try
                 {
                     regCulture = (new CultureInfo(language));
-                    //regCulture = CultureInfo.CreateSpecificCulture(language);
                 }
                 catch (Exception)
                 {
-                    //foreach (CultureInfo ci in 
-                    //    CultureInfo.GetCultures(CultureTypes.SpecificCultures))
-                    //{
-                    //    if (langCulture.Equals(ci.Parent))
-                    //    {
-                    //        regCulture = ci;
-                    //        break;
-                    //    }
-                    //}
                     if (regCulture == null)
                         regCulture = CultureInfo.InvariantCulture;
                 }
             }
 
-            string src = HTTPGet(site + indexPath + "index.php?title=Special:Export/" +
-                DateTime.Now.Ticks.ToString("x"));
+            string src = "magia";
+            //string src = await HTTPGet(site + indexPath + "index.php?title=Special:Export/" +
+            //    DateTime.Now.Ticks.ToString("x"));
             XmlReader reader = XmlReader.Create(new StringReader(src));
             //XmlTextReader reader = new XmlTextReader(new StringReader(src));
-            reader.Settings.IgnoreWhitespace = true;
+            //reader.Settings.IgnoreWhitespace = true;
             reader.ReadToFollowing("sitename");
-            name = reader.ReadContentAsString();
+            name = reader.ReadElementContentAsString();
             reader.ReadToFollowing("generator");
-            generator = reader.ReadContentAsString();
+            generator = reader.ReadElementContentAsString();
             ver = new Version(Regex.Replace(generator, @"[^\d\.]", ""));
             float.TryParse(ver.ToString(), NumberStyles.AllowDecimalPoint,
                 new CultureInfo("en-US"), out version);
             reader.ReadToFollowing("case");
-            capitalization = reader.ReadContentAsString();
+            capitalization = reader.ReadElementContentAsString();
             namespaces.Clear();
             while (reader.ReadToFollowing("namespace"))
                 namespaces.Add(reader.GetAttribute("key"),
-                    HttpUtility.HtmlDecode(reader.ReadContentAsString()));
+                    HttpUtility.HtmlDecode(reader.ReadElementContentAsString()));
             reader.Close();
             namespaces.Remove("0");
             foreach (KeyValuePair<string, string> ns in namespaces)
@@ -549,10 +534,10 @@ namespace DotNetMetroWikiaAPI
                 RegexOptions.Compiled);
             Console.WriteLine(User.Msg("Site: {0} ({1})"), name, generator);
             string userQueryUriStr = site + indexPath + "api.php?version";
-            string respStr;
+            string respStr = "";
             try
             {
-                respStr = HTTPGet(userQueryUriStr);
+                //respStr = await HTTPGet(userQueryUriStr);
                 if (respStr.Contains("<title>MediaWiki API</title>"))
                 {
                     userQuery = true;
@@ -578,7 +563,7 @@ namespace DotNetMetroWikiaAPI
                 userQueryUriStr = site + indexPath + "query.php";
                 try
                 {
-                    respStr = HTTPGet(userQueryUriStr);
+                    //respStr = await HTTPGet(userQueryUriStr);
                     if (respStr.Contains("<title>MediaWiki Query Interface</title>"))
                     {
                         userQuery = true;
@@ -593,7 +578,7 @@ namespace DotNetMetroWikiaAPI
         }
 
         /// <summary>Loads default English namespace names for site.</summary>
-        public void LoadDefaults()
+        public void LoadDefaults(bool isWikia)
         {
             if (wikiNSpaces.Count != 0 && WMSites.Count != 0)
                 return;
@@ -737,21 +722,11 @@ namespace DotNetMetroWikiaAPI
             userQueryProps.Add("images", "im"); userQueryProps.Add("imageinfo", "ii");
             userQueryProps.Add("templates", "tl"); userQueryProps.Add("categories", "cl");
             userQueryProps.Add("extlinks", "el"); userQueryLists.Add("search", "sr");
-        }
 
-        /// <summary>Logs in SourceForge.net and retrieves cookies for work with
-        /// SourceForge-hosted wikis. That's a special version of LogIn() function.</summary>
-        public void LogInSourceForge()
-        {
-            string postData = string.Format("form_loginname={0}&form_pw={1}" +
-                "&ssl_status=&form_rememberme=yes&login=Log+in",
-                HttpUtility.UrlEncode(userName.ToLower()), HttpUtility.UrlEncode(userPass));
-            string respStr = PostDataAndGetResultHTM("https://sourceforge.net/account/login.php",
-                postData, true, false);
-            if (respStr.Contains(" class=\"error\""))
-                throw new WikiUserException(
-                    "\n\n" + User.Msg("Login failed. Check your username and password.") + "\n");
-            Console.WriteLine(User.Msg("Logged in SourceForge as {0}."), userName);
+            if (isWikia)
+                LogInViaApi();
+            else
+                LogIn();
         }
 
         /// <summary>Logs in via api.php and retrieves cookies.</summary>
@@ -760,8 +735,109 @@ namespace DotNetMetroWikiaAPI
             string postData = string.Format("lgname={0}&lgpassword={1}&lgdomain={2}",
                 HttpUtility.UrlEncode(userName), HttpUtility.UrlEncode(userPass),
                 HttpUtility.UrlEncode(userDomain));
-            string respStr = PostDataAndGetResultHTM(site + indexPath +
-                "api.php?action=login&format=xml", postData, true, false);
+            PostDataAndGetResultHTM(site + indexPath +
+                "api.php?action=login&format=xml", postData, true, false, LogInViaApi2);
+        }
+
+        /// <summary>Logs in and retrieves cookies.</summary>
+        public void LogIn()
+        {
+            PostDataAndGetResultHTM(site + indexPath +
+                "index.php?title=Special:Userlogin", "", true, true, LogIn2);
+        }
+
+        /// <summary>This internal function gets the hypertext markup (HTM) of wiki-page.</summary>
+        /// <param name="pageURL">Absolute or relative URL of page to get.</param>
+        /// <returns>Returns HTM source code.</returns>
+        public void GetPageHTM(string pageURL, Action<IRestResponse, string> callback)
+        {
+            PostDataAndGetResultHTM(pageURL, "", false, true, callback);
+        }
+
+        /// <summary>This internal function posts specified string to requested resource
+        /// and gets the result hypertext markup (HTM).</summary>
+        /// <param name="pageURL">Absolute or relative URL of page to get.</param>
+        /// <param name="postData">String to post to site with web request.</param>
+        /// <returns>Returns code of hypertext markup (HTM).</returns>
+        public void PostDataAndGetResultHTM(string pageURL, string postData, Action<IRestResponse, string> callback)
+        {
+            PostDataAndGetResultHTM(pageURL, postData, false, true, callback);
+        }
+
+        /// <summary>This internal function posts specified string to requested resource
+        /// and gets the result hypertext markup (HTM).</summary>
+        /// <param name="pageURL">Absolute or relative URL of page to get.</param>
+        /// <param name="postData">String to post to site with web request.</param>
+        /// <param name="getCookies">If set to true, gets cookies from web response and
+        /// saves it in site.cookies container.</param>
+        /// <param name="allowRedirect">Allow auto-redirection of web request by server.</param>
+        /// <returns>Returns code of hypertext markup (HTM).</returns>
+        public void PostDataAndGetResultHTM(string pageURL, string postData, bool getCookies,
+            bool allowRedirect, Action<IRestResponse, string> callback)
+        {
+            if (string.IsNullOrEmpty(pageURL))
+                throw new WikiUserException(User.Msg("No URL specified."));
+            if (pageURL.Contains("?"))
+            {
+                int inqm = pageURL.IndexOf('?');
+                string addedParams = pageURL.Substring(inqm + 1);
+
+                int apiPhpIn = pageURL.IndexOf("api.php");
+                pageURL = pageURL.Substring(0, apiPhpIn);
+
+                string[] newParams = addedParams.Split('&');
+                foreach (string str in newParams)
+                {
+                    if (!postData.Contains(str))
+                        postData += "&" + str;
+                }
+            }
+            var client = new RestClient(pageURL);
+
+            client.CookieContainer = cookies;
+
+            var request = new RestRequest("api.php", Method.POST);
+            string[] postDataTable = postData.Split('&');
+            foreach (string pair in postDataTable)
+            {
+                int eqm = pair.IndexOf('=');
+                request.AddParameter(pair.Substring(0, eqm), pair.Substring(eqm + 1));
+            }
+            request.AddHeader("ContentType", "application/x-www-form-urlencoded");
+
+            for (int errorCounter = 0; true; errorCounter++)
+            {
+                try
+                {
+                    client.ExecuteAsync(request, (responce) =>
+                    {
+                        foreach (RestSharp.RestResponseCookie buiscuit in responce.Cookies)
+                        {
+                            cookies.Add(new Uri(pageURL), new Cookie(buiscuit.Name, buiscuit.Value, buiscuit.Path, buiscuit.Domain));
+                        }
+                        callback(responce, postData);
+                    });
+                    break;
+                }
+                catch (WebException e)
+                {
+                    string message = e.Message;
+                    if (Regex.IsMatch(message, ": \\(50[02349]\\) "))
+                    {		// Remote problem
+                        if (errorCounter > User.retryTimes)
+                            throw;
+                        Console.Error.WriteLine(message + " " + User.Msg("Retrying in 60 seconds."));
+                        Thread.Sleep(5000);
+                    }
+                    else
+                        throw;
+                }
+            }
+        }
+
+        private void LogInViaApi2(IRestResponse e, string postData)
+        {
+            string respStr = e.Content;
             if (respStr.Contains("result=\"Success\""))
             {
                 Console.WriteLine(User.Msg("Logged in as {0}."), userName);
@@ -774,19 +850,24 @@ namespace DotNetMetroWikiaAPI
                     "\n\n" + User.Msg("Login failed. Check your username and password.") + "\n");
             string loginToken = respStr.Substring(tokenPos + 7, 32);
             postData += "&lgtoken=" + HttpUtility.UrlEncode(loginToken);
-            respStr = PostDataAndGetResultHTM(site + indexPath +
-                "api.php?action=login&format=xml", postData, true, false);
+            PostDataAndGetResultHTM(site + indexPath +
+                "api.php?action=login&format=xml", postData, true, false, LogInViaApi3);
+        }
+
+        private void LogInViaApi3(IRestResponse e, string postData)
+        {
+            string respStr = e.Content;
+
             if (!respStr.Contains("result=\"Success\""))
                 throw new WikiUserException(
                     "\n\n" + User.Msg("Login failed. Check your username and password.") + "\n");
             Console.WriteLine(User.Msg("Logged in as {0}."), userName);
+            GetInfo();
         }
 
-        /// <summary>Logs in and retrieves cookies.</summary>
-        public void LogIn()
+        private void LogIn2(IRestResponse e, string notUsed)
         {
-            string loginPageSrc = PostDataAndGetResultHTM(site + indexPath +
-                "index.php?title=Special:Userlogin", "", true, true);
+            string loginPageSrc = e.Content;
             string loginToken = "";
             int loginTokenPos = loginPageSrc.IndexOf(
                 "<input type=\"hidden\" name=\"wpLoginToken\" value=\"");
@@ -797,134 +878,22 @@ namespace DotNetMetroWikiaAPI
                 "&wpLoginToken={3}&wpRemember=1&wpLoginattempt=Log+in",
                 HttpUtility.UrlEncode(userName), HttpUtility.UrlEncode(userPass),
                 HttpUtility.UrlEncode(userDomain), HttpUtility.UrlEncode(loginToken));
-            string respStr = PostDataAndGetResultHTM(site + indexPath +
+            PostDataAndGetResultHTM(site + indexPath +
                 "index.php?title=Special:Userlogin&action=submitlogin&type=login",
-                postData, true, false);
+                postData, true, false, LogIn3);
+        }
+
+        private void LogIn3(IRestResponse e, string postData)
+        {
+            string respStr = e.Content;
+            
             if (respStr.Contains("<div class=\"errorbox\">"))
                 throw new WikiUserException(
                     "\n\n" + User.Msg("Login failed. Check your username and password.") + "\n");
             Console.WriteLine(User.Msg("Logged in as {0}."), userName);
+            GetInfo();
         }
 
-        /// <summary>This internal function gets the hypertext markup (HTM) of wiki-page.</summary>
-        /// <param name="pageURL">Absolute or relative URL of page to get.</param>
-        /// <returns>Returns HTM source code.</returns>
-        public string GetPageHTM(string pageURL)
-        {
-            return PostDataAndGetResultHTM(pageURL, "", false, true);
-        }
-
-        /// <summary>This internal function posts specified string to requested resource
-        /// and gets the result hypertext markup (HTM).</summary>
-        /// <param name="pageURL">Absolute or relative URL of page to get.</param>
-        /// <param name="postData">String to post to site with web request.</param>
-        /// <returns>Returns code of hypertext markup (HTM).</returns>
-        public string PostDataAndGetResultHTM(string pageURL, string postData)
-        {
-            return PostDataAndGetResultHTM(pageURL, postData, false, true);
-        }
-
-        /// <summary>This internal function posts specified string to requested resource
-        /// and gets the result hypertext markup (HTM).</summary>
-        /// <param name="pageURL">Absolute or relative URL of page to get.</param>
-        /// <param name="postData">String to post to site with web request.</param>
-        /// <param name="getCookies">If set to true, gets cookies from web response and
-        /// saves it in site.cookies container.</param>
-        /// <param name="allowRedirect">Allow auto-redirection of web request by server.</param>
-        /// <returns>Returns code of hypertext markup (HTM).</returns>
-        public string PostDataAndGetResultHTM(string pageURL, string postData, bool getCookies,
-            bool allowRedirect)
-        {
-            if (string.IsNullOrEmpty(pageURL))
-                throw new WikiUserException(User.Msg("No URL specified."));
-            if (!pageURL.StartsWith(site) && !site.Contains("sourceforge"))
-                pageURL = site + pageURL;
-            HttpWebRequest webReq = (HttpWebRequest)WebRequest.Create(pageURL);
-            //webReq.Proxy.Credentials = CredentialCache.DefaultCredentials;
-            webReq.UseDefaultCredentials = true;
-            webReq.ContentType = User.webContentType;
-            webReq.UserAgent = User.userVer;
-            webReq.AllowAutoRedirect = allowRedirect;
-            if (cookies.Count == 0)
-                webReq.CookieContainer = new CookieContainer();
-            else
-                webReq.CookieContainer = cookies;
-            if (User.unsafeHttpHeaderParsingUsed == 0)
-            {
-                //webReq.ProtocolVersion = HttpVersion.Version10;
-                //webReq.KeepAlive = false;
-            }
-            //webReq.Headers.Add(HttpRequestHeader.AcceptEncoding, "gzip,deflate");
-            if (!string.IsNullOrEmpty(postData))
-            {
-                if (User.isRunningOnMono)	// Mono bug 636219 evasion
-                    webReq.AllowAutoRedirect = false;
-                // https://bugzilla.novell.com/show_bug.cgi?id=636219
-                webReq.Method = "POST";
-                //webReq.Timeout = 180000;
-                //byte[] postBytes = Encoding.UTF8.GetBytes(postData);
-                //webReq.ContentLength = postBytes.Length;
-                //Stream reqStrm = webReq.GetRequestStream();
-                //reqStrm.Write(postBytes, 0, postBytes.Length);
-                //reqStrm.Close();
-            }
-            HttpWebResponse webResp = null;
-            string respStr = null;
-            for (int errorCounter = 0; true; errorCounter++)
-            {
-                try
-                {
-                    respStr = HTTPPost((new Dictionary<string, object>()), pageURL);
-
-                    //webResp = (HttpWebResponse)webReq.GetResponse();
-                    break;
-                }
-                catch (WebException e)
-                {
-                    string message = e.Message;
-                    if (webReq.AllowAutoRedirect == false &&
-                        webResp.StatusCode == HttpStatusCode.Redirect)	// Mono bug 636219 evasion
-                        return "";
-                    if (Regex.IsMatch(message, ": \\(50[02349]\\) "))
-                    {		// Remote problem
-                        if (errorCounter > User.retryTimes)
-                            throw;
-                        Console.Error.WriteLine(message + " " + User.Msg("Retrying in 60 seconds."));
-                        Thread.Sleep(60000);
-                    }
-                    else if (message.Contains("Section=ResponseStatusLine"))
-                    {	// Squid problem
-                        User.SwitchUnsafeHttpHeaderParsing(true);
-                        //Console.Write("|");
-                        return PostDataAndGetResultHTM(pageURL, postData, getCookies,
-                            allowRedirect);
-                    }
-                    else
-                        throw;
-                }
-            }
-            //Stream respStream = webResp.GetResponseStream();
-            //if (webResp.ContentEncoding.ToLower().Contains("gzip"))
-            //    respStream = new GZipStream(respStream, CompressionMode.Decompress);
-            //else if (webResp.ContentEncoding.ToLower().Contains("deflate"))
-            //    respStream = new DeflateStream(respStream, CompressionMode.Decompress);
-            if (getCookies == true)
-            {
-                Uri siteUri = new Uri(site);
-                foreach (Cookie cookie in webResp.Cookies)
-                {
-                    if (cookie.Domain[0] == '.' &&
-                        cookie.Domain.Substring(1) == siteUri.Host)
-                        cookie.Domain = cookie.Domain.TrimStart(new char[] { '.' });
-                    cookies.Add(siteUri, cookie);
-                }
-            }
-            //StreamReader strmReader = new StreamReader(respStream, Encoding.UTF8);
-            //string respStr = strmReader.ReadToEnd();
-            //strmReader.Close();
-            webResp.Close();
-            return respStr;
-        }
 
         // Another methods added to make it work on WP7
 
@@ -983,105 +952,6 @@ namespace DotNetMetroWikiaAPI
                     writer.Close();
                 }
             }
-        }
-
-        /// <summary>A great way of simplifying HTTP GET requests. Developed by Vangos.
-        /// Changed by Hazardius 22.06.2012 .
-        /// Found on:
-        /// http://studentguru.gr/b/vangos/archive/2011/05/17/an-http-post-request-client-for-windows-phone-7.aspx
-        /// </summary>
-        /// <returns>Downloaded data as a string.</returns>
-        internal string HTTPGet()
-        {
-            string data = null;
-            WebClient webClient = new WebClient();
-            webClient.UseDefaultCredentials = true;
-
-            webClient.DownloadStringCompleted += (sender, e) =>
-            {
-                if (e.Error == null)
-                {
-                    data = e.Result;
-                }
-            };
-            webClient.DownloadStringAsync(new Uri(site, UriKind.Absolute));
-
-            return data;
-        }
-        
-        /// <summary>A great way of simplifying HTTP GET requests. Developed by Vangos.
-        /// Changed by Hazardius 22.06.2012 .
-        /// Found on:
-        /// http://studentguru.gr/b/vangos/archive/2011/05/17/an-http-post-request-client-for-windows-phone-7.aspx
-        /// Version enabling another sites through absAddress.
-        /// </summary>
-        /// <param name="absAddress">Absolute URL of requested resource.</param>
-        /// <returns>Downloaded data as a string.</returns>
-        internal string HTTPGet(string absAddress)
-        {
-            string data = null;
-            WebClient webClient = new WebClient();
-            webClient.UseDefaultCredentials = true;
-
-            webClient.DownloadStringCompleted += (sender, e) =>
-            {
-                if (e.Error == null)
-                {
-                    data = e.Result;
-                }
-            };
-            webClient.DownloadStringAsync(new Uri(absAddress, UriKind.Absolute));
-
-            return data;
-        }
-
-        /// <summary>An easy-to-use, thread-safe library which works similarly to
-        /// WebClient. Developed by Vangos. Changed by Hazardius 22.06.2012 .
-        /// Found on:
-        /// http://studentguru.gr/b/vangos/archive/2011/05/17/an-http-post-request-client-for-windows-phone-7.aspx
-        /// </summary>
-        /// <param name="parameters">Parameters used in POST.</param>
-        /// <returns>Downloaded data as a string.</returns>
-        internal string HTTPPost(Dictionary<string, object> parameters)
-        {
-            string data = null;
-
-            WindowsPhonePostClient.PostClient proxy = new WindowsPhonePostClient.PostClient(parameters);
-            proxy.DownloadStringCompleted += (sender, e) =>
-            {
-                if (e.Error == null)
-                {
-                    data = e.Result;
-                }
-            };
-            proxy.DownloadStringAsync(new Uri(site, UriKind.Absolute));
-
-            return data;
-        }
-
-        /// <summary>An easy-to-use, thread-safe library which works similarly to
-        /// WebClient. Developed by Vangos. Changed by Hazardius 22.06.2012 .
-        /// Found on:
-        /// http://studentguru.gr/b/vangos/archive/2011/05/17/an-http-post-request-client-for-windows-phone-7.aspx
-        /// </summary>
-        /// <param name="parameters">Parameters used in POST.</param>
-        /// <param name="absAddress">Absolute URL of requested resource.</param>
-        /// <returns>Downloaded data as a string.</returns>
-        internal string HTTPPost(Dictionary<string, object> parameters, string absAddress)
-        {
-            string data = null;
-
-            WindowsPhonePostClient.PostClient proxy = new WindowsPhonePostClient.PostClient(parameters);
-            proxy.DownloadStringCompleted += (sender, e) =>
-            {
-                if (e.Error == null)
-                {
-                    data = e.Result;
-                }
-            };
-            proxy.DownloadStringAsync(new Uri(absAddress, UriKind.Absolute));
-
-            return data;
         }
     }
 }

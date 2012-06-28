@@ -22,12 +22,19 @@ namespace Example1
             InitializeComponent();
         }
 
+        private void successInLogin()
+        {
+            NavigationService.Navigate(new Uri("/Images.xaml", UriKind.Relative));
+            button1.IsEnabled = true;
+        }
+
         private void button1_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                Site wikia = new Site("http://www.wikia.com", textBox1.Text, passwordBox1.Password);
+                Site wikia = new Site("http://www.wikia.com", textBox1.Text, passwordBox1.Password, successInLogin);
 
+                button1.IsEnabled = false;
                 //NavigationService.Navigate(new Uri("/Images.xaml", UriKind.Relative));
             }
             catch

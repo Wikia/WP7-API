@@ -202,6 +202,8 @@ namespace DotNetMetroWikiaAPI
         public CultureInfo regCulture;
         /// <summary>Windows Phone Isolated Storage</summary>
         private IsolatedStorageFile isf = IsolatedStorageFile.GetUserStoreForApplication();
+        /// <summary>Action which will be raised after succes in log in.</summary>
+        private Action loggedIn;
 
         /// <summary>This constructor is used to generate most Site objects.</summary>
         /// <param name="site">Wiki site's URI. It must point to the main page of the wiki, e.g.
@@ -209,8 +211,8 @@ namespace DotNetMetroWikiaAPI
         /// <param name="userName">User name to log in.</param>
         /// <param name="userPass">Password.</param>
         /// <returns>Returns Site object.</returns>
-        public Site(string site, string userName, string userPass)
-            : this(site, userName, userPass, "") { }
+        public Site(string site, string userName, string userPass, Action loggedIn)
+            : this(site, userName, userPass, "", loggedIn) { }
 
         /// <summary>This constructor is used for LDAP authentication. Additional information can
         /// be found at "http://www.mediawiki.org/wiki/Extension:LDAP_Authentication".</summary>
@@ -220,12 +222,13 @@ namespace DotNetMetroWikiaAPI
         /// <param name="userPass">Password.</param>
         /// <param name="userDomain">Domain for LDAP authentication.</param>
         /// <returns>Returns Site object.</returns>
-        public Site(string site, string userName, string userPass, string userDomain)
+        public Site(string site, string userName, string userPass, string userDomain, Action loggedIn)
         {
             this.site = site;
             this.userName = userName;
             this.userPass = userPass;
             this.userDomain = userDomain;
+            this.loggedIn = loggedIn;
             Initialize();
         }
 
@@ -233,7 +236,7 @@ namespace DotNetMetroWikiaAPI
         /// account data can be stored in UTF8-encoded "Defaults.dat" file in user's "Cache"
         /// subdirectory.</summary>
         /// <returns>Returns Site object.</returns>
-        public Site()
+        public Site(Action loggedIn)
         {
             if (isf.FileExists("Cache" + System.IO.Path.DirectorySeparatorChar + "Defaults.dat") == true)
             {
@@ -255,6 +258,7 @@ namespace DotNetMetroWikiaAPI
             }
             else
                 throw new WikiUserException(User.Msg("\"\\Cache\\Defaults.dat\" file not found."));
+            this.loggedIn = loggedIn;
             Initialize();
         }
 
@@ -269,10 +273,6 @@ namespace DotNetMetroWikiaAPI
             else
                 isWikia = false;
             GetPaths(isWikia);
-
-            //GetInfo();
-            //if (!User.isRunningOnMono)
-            //    User.DisableCanonicalizingUriAsFilePath();	// .NET bug evasion
         }
 
         private static void asyncHelper(IAsyncResult asyncReceive)
@@ -282,7 +282,7 @@ namespace DotNetMetroWikiaAPI
 
         /// <summary>Gets path to "index.php", short path to pages (if present), and then
         /// saves paths to file.</summary>
-        async public void GetPaths(bool isWikia)
+        public void GetPaths(bool isWikia)
         {
             if (!site.StartsWith("http"))
                 site = "http://" + site;
@@ -316,7 +316,7 @@ namespace DotNetMetroWikiaAPI
                     var request = new RestRequest("index.php");
 
                     client.ExecuteAsync(request, (responce) => {
-                        GetPaths2(responce, isWikia, filePathName, true);
+                        GetPaths2(responce, isWikia, filePathName);
                     });
 
                     break;
@@ -340,7 +340,7 @@ namespace DotNetMetroWikiaAPI
             }
         }
 
-        private void GetPaths2(IRestResponse e, bool isWikia, string filePathName, bool init)
+        private void GetPaths2(IRestResponse e, bool isWikia, string filePathName)
         {
             string data = e.Content;
             string temp = e.ResponseUri.AbsoluteUri;
@@ -382,11 +382,8 @@ namespace DotNetMetroWikiaAPI
             WriteAllText(filePathName, wikiPath + "\r\n" + indexPath + "\r\n" + xhtmlNSUri +
                 "\r\n" + language + "\r\n" + langDirection + "\r\n" + site, Encoding.UTF8);
 
-            if (init)
-            {
-                xmlNS.AddNamespace("ns", xhtmlNSUri);
-                LoadDefaults(isWikia);
-            }
+            xmlNS.AddNamespace("ns", xhtmlNSUri);
+            LoadDefaults(isWikia);
         }
 
         /// <summary>Retrieves metadata and local namespace names from site.</summary>
@@ -415,9 +412,19 @@ namespace DotNetMetroWikiaAPI
                 }
             }
 
-            string src = "magia";
-            //string src = await HTTPGet(site + indexPath + "index.php?title=Special:Export/" +
-            //    DateTime.Now.Ticks.ToString("x"));
+            var client = new RestClient(site);
+            var request = new RestRequest("index.php" + "?title=Special:Export/" +
+                DateTime.Now.Ticks.ToString("x"));
+
+            client.ExecuteAsync(request, (responce) =>
+            {
+                GetInfo2(responce);
+            });
+        }
+
+        private void GetInfo2(IRestResponse e)
+        {
+            string src = e.Content;
             XmlReader reader = XmlReader.Create(new StringReader(src));
             //XmlTextReader reader = new XmlTextReader(new StringReader(src));
             //reader.Settings.IgnoreWhitespace = true;
@@ -534,48 +541,74 @@ namespace DotNetMetroWikiaAPI
             redirectRE = new Regex(@"(?i)^#(?:" + redirectTag + @")\s*:?\s*\[\[(.+?)(\|.+)?]]",
                 RegexOptions.Compiled);
             Console.WriteLine(User.Msg("Site: {0} ({1})"), name, generator);
-            string userQueryUriStr = site + indexPath + "api.php?version";
-            string respStr = "";
+            string userQueryUriStr = "api.php?version";
             try
             {
-                //respStr = await HTTPGet(userQueryUriStr);
-                if (respStr.Contains("<title>MediaWiki API</title>"))
+                var client = new RestClient(site);
+                var request = new RestRequest(userQueryUriStr);
+
+                client.ExecuteAsync(request, (responce) =>
                 {
-                    userQuery = true;
-                    Regex userQueryVersionsRE = new Regex(@"(?i)<b><i>\$" +
-                        @"Id: (\S+) (\d+) (.+?) \$</i></b>");
-                    foreach (Match m in userQueryVersionsRE.Matches(respStr))
-                        userQueryVersions[m.Groups[1].ToString()] = m.Groups[2].ToString();
-                    if (!userQueryVersions.ContainsKey("ApiMain.php") && ver > new Version(1, 17))
-                    {
-                        // if versioning system is broken
-                        userQueryVersions["ApiQueryCategoryMembers.php"] = "104449";
-                        userQueryVersions["ApiQueryRevisions.php"] = "104449";
-                    }
-                }
+                    GetInfo3(responce, userQueryUriStr);
+                });
             }
             catch (WebException)
             {
                 userQuery = false;
             }
+        }
+
+        private void GetInfo3(IRestResponse e, string userQueryUriStr)
+        {
+            string respStr = e.Content;
+            if (respStr.Contains("<title>MediaWiki API</title>"))
+            {
+                userQuery = true;
+                Regex userQueryVersionsRE = new Regex(@"(?i)<b><i>\$" +
+                    @"Id: (\S+) (\d+) (.+?) \$</i></b>");
+                foreach (Match m in userQueryVersionsRE.Matches(respStr))
+                    userQueryVersions[m.Groups[1].ToString()] = m.Groups[2].ToString();
+                if (!userQueryVersions.ContainsKey("ApiMain.php") && ver > new Version(1, 17))
+                {
+                    // if versioning system is broken
+                    userQueryVersions["ApiQueryCategoryMembers.php"] = "104449";
+                    userQueryVersions["ApiQueryRevisions.php"] = "104449";
+                }
+            }
+
             if ((userQuery == false || !userQueryVersions.ContainsKey("ApiQueryCategoryMembers.php"))
                 && ver < new Version(1, 16))
             {
                 userQueryUriStr = site + indexPath + "query.php";
                 try
                 {
-                    //respStr = await HTTPGet(userQueryUriStr);
-                    if (respStr.Contains("<title>MediaWiki Query Interface</title>"))
+                    var client = new RestClient(site);
+                    var request = new RestRequest(userQueryUriStr);
+
+                    client.ExecuteAsync(request, (responce) =>
                     {
-                        userQuery = true;
-                        userQueryVersions["query.php"] = "Unknown";
-                    }
+                        GetInfo4(responce);
+                    });
                 }
                 catch (WebException)
                 {
                     return;
                 }
             }
+
+            loggedIn();
+        }
+
+        private void GetInfo4(IRestResponse e)
+        {
+            string respStr = e.Content;
+            if (respStr.Contains("<title>MediaWiki Query Interface</title>"))
+            {
+                userQuery = true;
+                userQueryVersions["query.php"] = "Unknown";
+            }
+
+            loggedIn();
         }
 
         /// <summary>Loads default English namespace names for site.</summary>

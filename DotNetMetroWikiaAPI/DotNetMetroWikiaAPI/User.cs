@@ -112,33 +112,6 @@ namespace DotNetMetroWikiaAPI
             //System.Configuration.ConfigurationManager.RefreshSection("system.net/settings");
         }
 
-        /// <summary>This internal function clears the CanonicalizeAsFilePath attribute in
-        /// .NET UriParser to fix a major .NET bug when System.Uri incorrectly strips trailing 
-        /// dots in URIs. The bug was discussed in details at:
-        /// https://connect.microsoft.com/VisualStudio/feedback/details/386695/system-uri-in
-        /// </summary>
-        public static void DisableCanonicalizingUriAsFilePath()
-        {
-            MethodInfo getSyntax = typeof(UriParser).GetMethod("GetSyntax",
-                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
-            FieldInfo flagsField = typeof(UriParser).GetField("m_Flags",
-                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-            if (getSyntax != null && flagsField != null)
-            {
-                foreach (string scheme in new string[] { "http", "https" })
-                {
-                    UriParser parser = (UriParser)getSyntax.Invoke(null, new object[] { scheme });
-                    if (parser != null)
-                    {
-                        int flagsValue = (int)flagsField.GetValue(parser);
-                        // Clear the CanonicalizeAsFilePath attribute
-                        if ((flagsValue & 0x1000000) != 0)
-                            flagsField.SetValue(parser, flagsValue & ~0x1000000);
-                    }
-                }
-            }
-        }
-
         /// <summary>This auxiliary function counts the occurrences of specified string
         /// in specified text. This count is often needed, but strangely there is no
         /// such function in .NET Framework's String class.</summary>

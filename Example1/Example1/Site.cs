@@ -270,20 +270,6 @@ namespace DotNetMetroWikiaAPI
                 isWikia = false;
             GetPaths(isWikia);
 
-            //if (site.Contains("wikia.com"))
-            //{
-            //    GetPaths();
-            //    xmlNS.AddNamespace("ns", xhtmlNSUri);
-            //    LoadDefaults();
-            //    LogInViaApi();
-            //}
-            //else
-            //{
-            //    GetPaths();
-            //    xmlNS.AddNamespace("ns", xhtmlNSUri);
-            //    LoadDefaults();
-            //    LogIn();
-            //}
             //GetInfo();
             //if (!User.isRunningOnMono)
             //    User.DisableCanonicalizingUriAsFilePath();	// .NET bug evasion
@@ -408,7 +394,7 @@ namespace DotNetMetroWikiaAPI
         {
             try
             {
-                langCulture = new CultureInfo(language); //language, false);
+                langCulture = new CultureInfo(language);
             }
             catch (Exception)
             {
@@ -421,19 +407,9 @@ namespace DotNetMetroWikiaAPI
                 try
                 {
                     regCulture = (new CultureInfo(language));
-                    //regCulture = CultureInfo.CreateSpecificCulture(language);
                 }
                 catch (Exception)
                 {
-                    //foreach (CultureInfo ci in 
-                    //    CultureInfo.GetCultures(CultureTypes.SpecificCultures))
-                    //{
-                    //    if (langCulture.Equals(ci.Parent))
-                    //    {
-                    //        regCulture = ci;
-                    //        break;
-                    //    }
-                    //}
                     if (regCulture == null)
                         regCulture = CultureInfo.InvariantCulture;
                 }
@@ -817,7 +793,6 @@ namespace DotNetMetroWikiaAPI
                         postData += "&" + str;
                 }
             }
-            //pageURL = pageURL + "&" + postData;
             var client = new RestClient(pageURL);
 
             client.CookieContainer = cookies;
@@ -830,12 +805,6 @@ namespace DotNetMetroWikiaAPI
                 request.AddParameter(pair.Substring(0, eqm), pair.Substring(eqm + 1));
             }
             request.AddHeader("ContentType", "application/x-www-form-urlencoded");
-
-            //if (cookies.Count != 0)
-            //    foreach (Cookie buiscuit in cookies.)
-            //        request.AddCookie(cookies.
-            //    }
-            //    webReq.CookieContainer = cookies;
 
             for (int errorCounter = 0; true; errorCounter++)
             {

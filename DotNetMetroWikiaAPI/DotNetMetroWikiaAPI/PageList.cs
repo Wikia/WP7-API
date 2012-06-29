@@ -37,8 +37,11 @@ using System.Windows.Shapes;
 
 namespace DotNetMetroWikiaAPI
 {
-    public class PageList
+    static public partial class Api
     {
+        private class PageList
+        {
 
+        }
     }
 }

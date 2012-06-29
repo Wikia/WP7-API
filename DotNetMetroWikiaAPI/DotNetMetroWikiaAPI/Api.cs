@@ -40,7 +40,7 @@ using System.Xml;
 
 namespace DotNetMetroWikiaAPI
 {
-    static public class Api
+    static public partial class Api
     {
         static Site usedWiki = null;
         static Delegate tempDel = null;
@@ -72,6 +72,11 @@ namespace DotNetMetroWikiaAPI
                 failInLogin);
         }
 
+        /// <summary>Method to get response for a query.</summary>
+        /// <param name="callback">Delegate of function to run after receiving query
+        /// response. Using only args: IRestResponce queryResponce and string sendData.
+        /// </param>
+        /// <param name="query">Query.</param>
         public static void SendQuery(Delegate callback, string query)
         {
             new QueryMaker(callback, query, usedWiki, null);

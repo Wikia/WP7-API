@@ -39,15 +39,9 @@ namespace Example1
         {
             try
             {
-<<<<<<< HEAD
                 Api.LogIn("http://www.wikia.com", textBox1.Text, passwordBox1.Password, successInLogin, failInLogin);
 
                 button1.IsEnabled = false;
-                //NavigationService.Navigate(new Uri("/Images.xaml", UriKind.Relative));
-=======
-                //Site wikia = new Site("http://wikia.com", textBox1.Text, passwordBox1.Password);
-                NavigationService.Navigate(new Uri("/Images.xaml", UriKind.Relative));
->>>>>>> b710f1e96c4284b9c8ecb3b4d7cf2ef63edcbd32
             }
             catch
             {

@@ -21,7 +21,7 @@ namespace Example1
         {
             InitializeComponent();
 
-            DotNetMetroWikiaAPI.Api.GetListOfWikis(new Action<List<string>>(test), 966, 976);
+            DotNetMetroWikiaAPI.Api.GetListOfWikis(new Action<List<string>>(test), 966, 976, true, "en");
             // Set the data context of the listbox control to the sample data
             DataContext = App.ViewModel;
             this.Loaded += new RoutedEventHandler(Images_Loaded);

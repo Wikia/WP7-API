@@ -43,6 +43,7 @@ namespace DotNetMetroWikiaAPI
     static public partial class Api
     {
         static Site usedWiki = null;
+        static bool isTempDelFree = true;
         static Delegate tempDel = null;
 
         /// <summary>Method to log in to the www.wikia.com api.</summary>
@@ -72,7 +73,8 @@ namespace DotNetMetroWikiaAPI
                 failInLogin);
         }
 
-        /// <summary>Method to get response for a query.</summary>
+        /// <summary>Method to get response for a query. It's recommended to use other
+        /// methods from this API to get what You need.</summary>
         /// <param name="callback">Delegate of function to run after receiving query
         /// response. Using only args: IRestResponce queryResponce and string sendData.
         /// </param>
@@ -82,7 +84,8 @@ namespace DotNetMetroWikiaAPI
             new QueryMaker(callback, query, usedWiki, null);
         }
 
-        /// <summary>Method to get response for a query.</summary>
+        /// <summary>Method to get response for a query. It's recommended to use other
+        /// methods from this API to get what You need.</summary>
         /// <param name="callback">Delegate of function to run after receiving query
         /// response.</param>
         /// <param name="query">Query.</param>
@@ -99,28 +102,78 @@ namespace DotNetMetroWikiaAPI
         {
             List<string> listOfWikis = new List<string>();
             XmlReader reader = XmlReader.Create(new StringReader(response));
-            reader.ReadToDescendant("variable");
-            do
-            {
-                if (reader.NodeType == XmlNodeType.Text)
-                listOfWikis.Add(HttpUtility.HtmlDecode(reader.Value));
-            } while (reader.Read());
+            if (reader.ReadToDescendant("variable"))
+                do
+                {
+                    if (reader.NodeType == XmlNodeType.Text)
+                        listOfWikis.Add(HttpUtility.HtmlDecode(reader.Value));
+                } while (reader.Read());
             reader.Close();
             tempDel.DynamicInvoke(listOfWikis);
+            tempDel = null;
+            isTempDelFree = true;
         }
 
-        /// <summary>Get list of all wikis in interval.</summary>
-        /// <param name="callback">Method using the list.</param>
-        /// <param name="from">From which wkId should the list start.</param>
-        /// <param name="to">On which wkId should the list end.</param>
-        public static void GetListOfWikis(Delegate callback, int from, int to)
+        private static void SendBackNumberOfWikis(string response, string postData,
+            object[] args)
         {
-            if (usedWiki != null)
+            int number = 0;
+            XmlReader reader = XmlReader.Create(new StringReader(response));
+            if (reader.ReadToDescendant("variable"))
+                do
+                {
+                    if (reader.NodeType == XmlNodeType.Element
+                        && reader.Name == "variable")
+                        number++;
+                } while (reader.Read());
+            reader.Close();
+            tempDel.DynamicInvoke(number);
+            tempDel = null;
+            isTempDelFree = true;
+        }
+
+        /// <summary>Get list of all wikis.</summary>
+        /// <param name="callback">Method using the list.</param>
+        /// <param name="from">Beginning of interval.</param>
+        /// <param name="to">End of interval.</param>
+        /// <param name="onlyActive">Return only active wikis?</param>
+        /// <param name="wikiLang">Return only wikis of selected language.</param>
+        public static void GetListOfWikis(Delegate callback, int from, int to,
+            bool onlyActive, string wikiLang)
+        {
+            if ((usedWiki != null)&&(isTempDelFree))
             {
+                isTempDelFree = false;
                 tempDel = callback;
+                int active = 0;
+                if (onlyActive)
+                    active = 1;
                 SendQuery(new Action<string, string, object[]>(SendBackListOfWikis),
-                    "list=wkdomains&wkfrom=" + from + "&wkto=" + to + "&format=xml",
-                    null);
+                    "list=wkdomains&wkfrom=" + from + "&wkactive=" + active + "&wkto="
+                    + to + "&wklang=" + wikiLang + "&format=xml");
+            }
+        }
+
+        /// <summary>Get number of all wikis in interval.</summary>
+        /// <param name="callback">Method using the link.</param>
+        /// <param name="from">Beginning of interval.</param>
+        /// <param name="to">End of interval.</param>
+        /// <param name="onlyActive">Count only active wikis?</param>
+        /// <param name="wikiLang">Count only wikis of selected language.</param>
+        public static void GetNumberOfWikis(Delegate callback, int from, int to,
+            bool onlyActive, string wikiLang)
+        {
+            if ((usedWiki != null) && (isTempDelFree))
+            {
+                isTempDelFree = false;
+                tempDel = callback;
+                int active = 0;
+                if (onlyActive)
+                    active = 1;
+                SendQuery(new Action<string, string, object[]>(SendBackNumberOfWikis),
+                        "list=wkdomains&wkfrom=" + from + "&wkactive=" + active
+                        + "&wkto=" + to + "&wkcountonly=" + 1 + "&wklang=" + wikiLang
+                        + "&format=xml");
             }
         }
     }

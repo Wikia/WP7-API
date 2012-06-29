@@ -28,7 +28,7 @@
                                 <ColumnDefinition/>
                             </Grid.ColumnDefinitions>
                             <TextBlock VerticalAlignment="Center" Grid.Column="0" Text="My choise:"/>
-                            <TextBox Grid.Column="1" />
+                            <TextBox Grid.Column="1" Name="searchWikiBox" />
                         </Grid>
                     </ListBoxItem>
                     <ListBoxItem HorizontalAlignment="Center" Tap="ListBoxItem_Tap">

@@ -25,6 +25,13 @@ namespace Example1
         private void successInLogin()
         {
             NavigationService.Navigate(new Uri("/Images.xaml", UriKind.Relative));
+            textBlock3.Visibility = Visibility.Collapsed;
+            button1.IsEnabled = true;
+        }
+
+        private void failInLogin()
+        {
+            textBlock3.Visibility = Visibility.Visible;
             button1.IsEnabled = true;
         }
 
@@ -32,7 +39,7 @@ namespace Example1
         {
             try
             {
-                Site wikia = new Site("http://www.wikia.com", textBox1.Text, passwordBox1.Password, successInLogin);
+                Api.LogIn("http://www.wikia.com", textBox1.Text, passwordBox1.Password, successInLogin, failInLogin);
 
                 button1.IsEnabled = false;
                 //NavigationService.Navigate(new Uri("/Images.xaml", UriKind.Relative));

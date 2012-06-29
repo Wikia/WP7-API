@@ -204,6 +204,8 @@ namespace DotNetMetroWikiaAPI
         private IsolatedStorageFile isf = IsolatedStorageFile.GetUserStoreForApplication();
         /// <summary>Action which will be raised after succes in log in.</summary>
         private Action loggedIn;
+        /// <summary>Action which will be raised after fail in log in.</summary>
+        private Action problemInLogin;
 
         /// <summary>This constructor is used to generate most Site objects.</summary>
         /// <param name="site">Wiki site's URI. It must point to the main page of the wiki, e.g.
@@ -211,8 +213,8 @@ namespace DotNetMetroWikiaAPI
         /// <param name="userName">User name to log in.</param>
         /// <param name="userPass">Password.</param>
         /// <returns>Returns Site object.</returns>
-        public Site(string site, string userName, string userPass, Action loggedIn)
-            : this(site, userName, userPass, "", loggedIn) { }
+        public Site(string site, string userName, string userPass, Action loggedIn, Action problem)
+            : this(site, userName, userPass, "", loggedIn, problem) { }
 
         /// <summary>This constructor is used for LDAP authentication. Additional information can
         /// be found at "http://www.mediawiki.org/wiki/Extension:LDAP_Authentication".</summary>
@@ -222,13 +224,14 @@ namespace DotNetMetroWikiaAPI
         /// <param name="userPass">Password.</param>
         /// <param name="userDomain">Domain for LDAP authentication.</param>
         /// <returns>Returns Site object.</returns>
-        public Site(string site, string userName, string userPass, string userDomain, Action loggedIn)
+        public Site(string site, string userName, string userPass, string userDomain, Action loggedIn, Action problem)
         {
             this.site = site;
             this.userName = userName;
             this.userPass = userPass;
             this.userDomain = userDomain;
             this.loggedIn = loggedIn;
+            problemInLogin = problem;
             Initialize();
         }
 
@@ -783,7 +786,7 @@ namespace DotNetMetroWikiaAPI
         /// <summary>This internal function gets the hypertext markup (HTM) of wiki-page.</summary>
         /// <param name="pageURL">Absolute or relative URL of page to get.</param>
         /// <returns>Returns HTM source code.</returns>
-        public void GetPageHTM(string pageURL, Action<IRestResponse, string> callback)
+        public void GetPageHTM(string pageURL, Action<IRestResponse, string, object[]> callback)
         {
             PostDataAndGetResultHTM(pageURL, "", false, true, callback);
         }
@@ -793,7 +796,7 @@ namespace DotNetMetroWikiaAPI
         /// <param name="pageURL">Absolute or relative URL of page to get.</param>
         /// <param name="postData">String to post to site with web request.</param>
         /// <returns>Returns code of hypertext markup (HTM).</returns>
-        public void PostDataAndGetResultHTM(string pageURL, string postData, Action<IRestResponse, string> callback)
+        public void PostDataAndGetResultHTM(string pageURL, string postData, Action<IRestResponse, string, object[]> callback)
         {
             PostDataAndGetResultHTM(pageURL, postData, false, true, callback);
         }
@@ -807,7 +810,7 @@ namespace DotNetMetroWikiaAPI
         /// <param name="allowRedirect">Allow auto-redirection of web request by server.</param>
         /// <returns>Returns code of hypertext markup (HTM).</returns>
         public void PostDataAndGetResultHTM(string pageURL, string postData, bool getCookies,
-            bool allowRedirect, Action<IRestResponse, string> callback)
+            bool allowRedirect, Action<IRestResponse, string, object[]> callback)
         {
             if (string.IsNullOrEmpty(pageURL))
                 throw new WikiUserException(User.Msg("No URL specified."));
@@ -849,7 +852,7 @@ namespace DotNetMetroWikiaAPI
                         {
                             cookies.Add(new Uri(pageURL), new Cookie(buiscuit.Name, buiscuit.Value, buiscuit.Path, buiscuit.Domain));
                         }
-                        callback(responce, postData);
+                        callback(responce, postData, null);
                     });
                     break;
                 }
@@ -869,7 +872,7 @@ namespace DotNetMetroWikiaAPI
             }
         }
 
-        private void LogInViaApi2(IRestResponse e, string postData)
+        private void LogInViaApi2(IRestResponse e, string postData, params object[] args)
         {
             string respStr = e.Content;
             if (respStr.Contains("result=\"Success\""))
@@ -880,26 +883,38 @@ namespace DotNetMetroWikiaAPI
 
             int tokenPos = respStr.IndexOf("token=\"");
             if (tokenPos < 1)
-                throw new WikiUserException(
-                    "\n\n" + User.Msg("Login failed. Check your username and password.") + "\n");
+            {
+                wikiNSpaces = new Dictionary<string, string>();
+                WMSites = new Dictionary<string, string>();
+                userQueryLists = new Dictionary<string, string>();
+                userQueryProps = new Dictionary<string, string>();
+                problemInLogin();
+                return;
+            }
             string loginToken = respStr.Substring(tokenPos + 7, 32);
             postData += "&lgtoken=" + HttpUtility.UrlEncode(loginToken);
             PostDataAndGetResultHTM(site + indexPath +
                 "api.php?action=login&format=xml", postData, true, false, LogInViaApi3);
         }
 
-        private void LogInViaApi3(IRestResponse e, string postData)
+        private void LogInViaApi3(IRestResponse e, string postData, params object[] args)
         {
             string respStr = e.Content;
 
             if (!respStr.Contains("result=\"Success\""))
-                throw new WikiUserException(
-                    "\n\n" + User.Msg("Login failed. Check your username and password.") + "\n");
+            {
+                wikiNSpaces = new Dictionary<string, string>();
+                WMSites = new Dictionary<string, string>();
+                userQueryLists = new Dictionary<string, string>();
+                userQueryProps = new Dictionary<string, string>();
+                problemInLogin();
+                return;
+            }
             Console.WriteLine(User.Msg("Logged in as {0}."), userName);
             GetInfo();
         }
 
-        private void LogIn2(IRestResponse e, string notUsed)
+        private void LogIn2(IRestResponse e, string notUsed, params object[] args)
         {
             string loginPageSrc = e.Content;
             string loginToken = "";
@@ -917,17 +932,22 @@ namespace DotNetMetroWikiaAPI
                 postData, true, false, LogIn3);
         }
 
-        private void LogIn3(IRestResponse e, string postData)
+        private void LogIn3(IRestResponse e, string postData, params object[] args)
         {
             string respStr = e.Content;
-            
+
             if (respStr.Contains("<div class=\"errorbox\">"))
-                throw new WikiUserException(
-                    "\n\n" + User.Msg("Login failed. Check your username and password.") + "\n");
+            {
+                wikiNSpaces = new Dictionary<string, string>();
+                WMSites = new Dictionary<string, string>();
+                userQueryLists = new Dictionary<string, string>();
+                userQueryProps = new Dictionary<string, string>();
+                problemInLogin();
+                return;
+            }
             Console.WriteLine(User.Msg("Logged in as {0}."), userName);
             GetInfo();
         }
-
 
         // Another methods added to make it work on WP7
 
@@ -936,7 +956,7 @@ namespace DotNetMetroWikiaAPI
         /// <param name="path">The file(in the Insolated Storage) to open for reading.</param>
         /// <param name="encType">Type encoding used in the file.</param>
         /// <returns>A string array containing all lines of the file.</returns>
-        internal string[] ReadAllLines(string path, Encoding encType)
+        private string[] ReadAllLines(string path, Encoding encType)
         {
             List<string> tempList = new List<string>();
 
@@ -967,7 +987,7 @@ namespace DotNetMetroWikiaAPI
         /// <param name="path">The file(in the Insolated Storage) to write to.</param>
         /// <param name="contents">The string to write to the file.</param>
         /// <param name="encoding">The encoding to apply to the string.</param>
-        internal void WriteAllText(string path, string contents, Encoding encoding)
+        private void WriteAllText(string path, string contents, Encoding encoding)
         {
             List<string> tempList = new List<string>();
 

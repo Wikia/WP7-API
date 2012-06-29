@@ -20,9 +20,15 @@ namespace Example1
         {
             InitializeComponent();
 
+            DotNetMetroWikiaAPI.Api.GetListOfWikis(new Action<List<string>>(test), 966, 976);
             // Set the data context of the listbox control to the sample data
             DataContext = App.ViewModel;
             this.Loaded += new RoutedEventHandler(Images_Loaded);
+        }
+
+        private void test(List<string> lista)
+        {
+            searchWikiBox.Text = lista.ElementAt(0);
         }
 
         // Load data for the ViewModel Items

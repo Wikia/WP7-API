@@ -41,7 +41,13 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="AsyncCtpLibrary_Phone">
+      <HintPath>C:\Users\Marcin\Documents\Microsoft Visual Studio Async CTP\Samples\(C# Windows Phone) Netflix\Netflix\Bin\Debug\AsyncCtpLibrary_Phone.dll</HintPath>
+    </Reference>
     <Reference Include="Microsoft.Phone" />
+    <Reference Include="RestSharp.WindowsPhone">
+      <HintPath>C:\Users\Marcin\Downloads\restsharp-RestSharp-7229095\restsharp-RestSharp-7229095\RestSharp.WindowsPhone.Mango\Bin\Release\RestSharp.WindowsPhone.dll</HintPath>
+    </Reference>
     <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.Windows" />
     <Reference Include="system" />
@@ -49,12 +55,11 @@
     <Reference Include="System.Xml" />
     <Reference Include="System.Net" />
     <Reference Include="mscorlib.extensions" />
-    <Reference Include="WindowsPhonePostClient">
-      <HintPath>C:\Users\Marcin\Downloads\WindowsPhonePostClient\WindowsPhonePostClient\WindowsPhonePostClient\Bin\Release\WindowsPhonePostClient.dll</HintPath>
-    </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Api.cs" />
     <Compile Include="PageList.cs" />
+    <Compile Include="QueryMaker.cs" />
     <Compile Include="Site.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="User.cs" />

@@ -136,6 +136,60 @@ namespace DotNetMetroWikiaAPI
         /// <param name="callback">Method using the list.</param>
         /// <param name="from">Beginning of interval.</param>
         /// <param name="to">End of interval.</param>
+        public static void GetListOfWikis(Delegate callback, int from, int to)
+        {
+            if ((usedWiki != null) && (isTempDelFree))
+            {
+                isTempDelFree = false;
+                tempDel = callback;
+                SendQuery(new Action<string, string, object[]>(SendBackListOfWikis),
+                    "list=wkdomains&wkfrom=" + from + "&wkto=" + to + "&format=xml");
+            }
+        }
+
+        /// <summary>Get list of all wikis.</summary>
+        /// <param name="callback">Method using the list.</param>
+        /// <param name="from">Beginning of interval.</param>
+        /// <param name="to">End of interval.</param>
+        /// <param name="onlyActive">Return only active wikis?</param>
+        public static void GetListOfWikis(Delegate callback, int from, int to,
+            bool onlyActive)
+        {
+            if ((usedWiki != null) && (isTempDelFree))
+            {
+                isTempDelFree = false;
+                tempDel = callback;
+                int active = 0;
+                if (onlyActive)
+                    active = 1;
+                SendQuery(new Action<string, string, object[]>(SendBackListOfWikis),
+                    "list=wkdomains&wkfrom=" + from + "&wkactive=" + active + "&wkto="
+                    + to + "&format=xml");
+            }
+        }
+
+        /// <summary>Get list of all wikis.</summary>
+        /// <param name="callback">Method using the list.</param>
+        /// <param name="from">Beginning of interval.</param>
+        /// <param name="to">End of interval.</param>
+        /// <param name="wikiLang">Return only wikis of selected language.</param>
+        public static void GetListOfWikis(Delegate callback, int from, int to,
+            string wikiLang)
+        {
+            if ((usedWiki != null) && (isTempDelFree))
+            {
+                isTempDelFree = false;
+                tempDel = callback;
+                SendQuery(new Action<string, string, object[]>(SendBackListOfWikis),
+                    "list=wkdomains&wkfrom=" + from + "&wkto=" + to + "&wklang="
+                    + wikiLang + "&format=xml");
+            }
+        }
+
+        /// <summary>Get list of all wikis.</summary>
+        /// <param name="callback">Method using the list.</param>
+        /// <param name="from">Beginning of interval.</param>
+        /// <param name="to">End of interval.</param>
         /// <param name="onlyActive">Return only active wikis?</param>
         /// <param name="wikiLang">Return only wikis of selected language.</param>
         public static void GetListOfWikis(Delegate callback, int from, int to,
@@ -158,10 +212,43 @@ namespace DotNetMetroWikiaAPI
         /// <param name="callback">Method using the link.</param>
         /// <param name="from">Beginning of interval.</param>
         /// <param name="to">End of interval.</param>
-        /// <param name="onlyActive">Count only active wikis?</param>
+        public static void GetNumberOfWikis(Delegate callback, int from, int to)
+        {
+            if ((usedWiki != null) && (isTempDelFree))
+            {
+                isTempDelFree = false;
+                tempDel = callback;
+                SendQuery(new Action<string, string, object[]>(SendBackNumberOfWikis),
+                        "list=wkdomains&wkfrom=" + from + "&wkto=" + to + "&wkcountonly="
+                        + 1 + "&format=xml");
+            }
+        }
+
+        /// <summary>Get number of all wikis in interval.</summary>
+        /// <param name="callback">Method using the link.</param>
+        /// <param name="from">Beginning of interval.</param>
+        /// <param name="to">End of interval.</param>
         /// <param name="wikiLang">Count only wikis of selected language.</param>
         public static void GetNumberOfWikis(Delegate callback, int from, int to,
-            bool onlyActive, string wikiLang)
+            string wikiLang)
+        {
+            if ((usedWiki != null) && (isTempDelFree))
+            {
+                isTempDelFree = false;
+                tempDel = callback;
+                SendQuery(new Action<string, string, object[]>(SendBackNumberOfWikis),
+                        "list=wkdomains&wkfrom=" + from + "&wkto=" + to + "&wkcountonly="
+                        + 1 + "&wklang=" + wikiLang + "&format=xml");
+            }
+        }
+
+        /// <summary>Get number of all wikis in interval.</summary>
+        /// <param name="callback">Method using the link.</param>
+        /// <param name="from">Beginning of interval.</param>
+        /// <param name="to">End of interval.</param>
+        /// <param name="onlyActive">Count only active wikis?</param>
+        public static void GetNumberOfWikis(Delegate callback, int from, int to,
+            bool onlyActive)
         {
             if ((usedWiki != null) && (isTempDelFree))
             {
@@ -172,8 +259,7 @@ namespace DotNetMetroWikiaAPI
                     active = 1;
                 SendQuery(new Action<string, string, object[]>(SendBackNumberOfWikis),
                         "list=wkdomains&wkfrom=" + from + "&wkactive=" + active
-                        + "&wkto=" + to + "&wkcountonly=" + 1 + "&wklang=" + wikiLang
-                        + "&format=xml");
+                        + "&wkto=" + to + "&wkcountonly=" + 1 + "&format=xml");
             }
         }
     }

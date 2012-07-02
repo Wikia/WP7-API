@@ -68,7 +68,7 @@ namespace DotNetMetroWikiaAPI
             /// <param name="callback">Delegate of method you want to use. It must have
             /// two more argument fields at the beginning for IRestResponse queryResponse and
             /// string sendData.</param>
-            public QueryMaker(Site site, string request, Delegate callback)
+            public QueryMaker(Delegate callback, string request, Site site)
             {
                 this.callback = callback;
                 this.site = site;

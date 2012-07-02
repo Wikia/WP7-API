@@ -38,6 +38,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Xml;
 using RestSharp;
+using System.Threading;
 
 namespace DotNetMetroWikiaAPI
 {
@@ -46,6 +47,7 @@ namespace DotNetMetroWikiaAPI
         static Site usedWiki = null;
         static bool isTempDelFree = true;
         static Delegate tempDel = null;
+        static int tempInt = -1;
 
         /// <summary>Method to log in to the www.wikia.com api.</summary>
         /// <param name="username">Username.</param>
@@ -79,7 +81,7 @@ namespace DotNetMetroWikiaAPI
         /// Using only args: IRestResponce queryResponce and string sendData.</param>
         public static void LogOut(Delegate callback)
         {
-            new QueryMaker(usedWiki, "action=logout", callback);
+            new QueryMaker(callback, "action=logout", usedWiki);
             usedWiki.ResetDictionaries();
             usedWiki = null;
         }
@@ -149,7 +151,8 @@ namespace DotNetMetroWikiaAPI
         /// <param name="to">End of interval.</param>
         public static void GetListOfWikis(Delegate callback, int from, int to)
         {
-            if ((usedWiki != null) && (isTempDelFree))
+            while (!isTempDelFree) { Thread.Sleep(2000); };
+            if (usedWiki != null)
             {
                 isTempDelFree = false;
                 tempDel = callback;
@@ -166,7 +169,8 @@ namespace DotNetMetroWikiaAPI
         public static void GetListOfWikis(Delegate callback, int from, int to,
             bool onlyActive)
         {
-            if ((usedWiki != null) && (isTempDelFree))
+            while (!isTempDelFree) { Thread.Sleep(2000); };
+            if (usedWiki != null)
             {
                 isTempDelFree = false;
                 tempDel = callback;
@@ -187,7 +191,8 @@ namespace DotNetMetroWikiaAPI
         public static void GetListOfWikis(Delegate callback, int from, int to,
             string wikiLang)
         {
-            if ((usedWiki != null) && (isTempDelFree))
+            while (!isTempDelFree) { Thread.Sleep(2000); };
+            if (usedWiki != null)
             {
                 isTempDelFree = false;
                 tempDel = callback;
@@ -206,7 +211,8 @@ namespace DotNetMetroWikiaAPI
         public static void GetListOfWikis(Delegate callback, int from, int to,
             bool onlyActive, string wikiLang)
         {
-            if ((usedWiki != null)&&(isTempDelFree))
+            while (!isTempDelFree) { Thread.Sleep(2000); };
+            if (usedWiki != null)
             {
                 isTempDelFree = false;
                 tempDel = callback;
@@ -225,7 +231,8 @@ namespace DotNetMetroWikiaAPI
         /// <param name="to">End of interval.</param>
         public static void GetNumberOfWikis(Delegate callback, int from, int to)
         {
-            if ((usedWiki != null) && (isTempDelFree))
+            while (!isTempDelFree) { Thread.Sleep(2000); };
+            if (usedWiki != null)
             {
                 isTempDelFree = false;
                 tempDel = callback;
@@ -243,7 +250,8 @@ namespace DotNetMetroWikiaAPI
         public static void GetNumberOfWikis(Delegate callback, int from, int to,
             string wikiLang)
         {
-            if ((usedWiki != null) && (isTempDelFree))
+            while (!isTempDelFree) { Thread.Sleep(2000); };
+            if (usedWiki != null)
             {
                 isTempDelFree = false;
                 tempDel = callback;
@@ -261,7 +269,8 @@ namespace DotNetMetroWikiaAPI
         public static void GetNumberOfWikis(Delegate callback, int from, int to,
             bool onlyActive)
         {
-            if ((usedWiki != null) && (isTempDelFree))
+            while (!isTempDelFree) { Thread.Sleep(2000); };
+            if (usedWiki != null)
             {
                 isTempDelFree = false;
                 tempDel = callback;
@@ -272,6 +281,70 @@ namespace DotNetMetroWikiaAPI
                         "list=wkdomains&wkfrom=" + from + "&wkactive=" + active
                         + "&wkto=" + to + "&wkcountonly=" + 1 + "&format=xml");
             }
+        }
+
+        private static void ReturnNewFilesListWrapper(IRestResponse e, string postData, List<FileInfo> files)
+        {
+            tempInt--;
+            if (tempInt > 0 )
+            {
+                /// TODO: Parse XML with Image data to get Username
+                /// TODO: Find a way to nicely do counting of Images.
+                SendQuery(new Action<IRestResponse, string, List<FileInfo>>
+                    (ReturnNewFilesListWrapper), "generator=images&titles="
+                    + files[0].GetFilename(), files);
+            } else {
+                tempDel.DynamicInvoke(files);
+                tempDel = null;
+                tempInt = -1;
+                isTempDelFree = true;
+            }
+        }
+
+        private static void GetNewFilesListWrapper(string pageCode)
+        {
+            List<FileInfo> files = new List<FileInfo>();
+
+            XmlReader reader = XmlReader.Create(new StringReader(pageCode));
+            if (reader.ReadToFollowing("item"))
+            {
+                string filename = "", date = "";
+                int counter = 0;
+                reader.ReadToFollowing("title");
+                do
+                {
+                    filename = HttpUtility.HtmlDecode(reader.ReadElementContentAsString());
+                    reader.ReadToFollowing("pubDate");
+                    date = HttpUtility.HtmlDecode(reader.ReadElementContentAsString());
+                    files.Add(new FileInfo(filename, date));
+                    counter++;
+                } while ((reader.ReadToFollowing("title")) && (counter < tempInt));
+                tempInt = counter;
+                reader.Close();
+                SendQuery(new Action<IRestResponse, string, List<FileInfo>>
+                    (ReturnNewFilesListWrapper), "titles=File:"
+                    + files[0].GetFilename() + "&prop=imageinfo", files);
+            }
+            else
+            {
+                reader.Close();
+                throw new WebException("Response from the server isn't valid.");
+            }
+        }
+
+        /// <summary>Get list of up to 18 New Files from choosen wiki.</summary>
+        /// <param name="callback">Method using</param>
+        /// <param name="wikiname">Prefix used by choosen wiki.</param>
+        public static void GetNewFilesListFromWiki(Action<List<FileInfo>> callback,
+            string wikiname, int quantity)
+        {
+            while (!isTempDelFree) { Thread.Sleep(2000); };
+            tempDel = callback;
+            isTempDelFree = false;
+            tempInt = quantity;
+            int beginning = usedWiki.site.IndexOf(".wikia");
+            usedWiki.GetPageHTM("http://" + wikiname + usedWiki.site
+                .Substring(beginning) + "/wiki/Special:NewFiles?feed=rss", GetNewFilesListWrapper);
         }
     }
 }

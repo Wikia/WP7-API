@@ -64,9 +64,14 @@ namespace Example1
             }
         }
 
+        private void test(List<DotNetMetroWikiaAPI.Api.FileInfo> lista)
+        {
+            searchWikiBox.Text = lista.ElementAt(0).ToString();
+        }
+
         private void ListBoxItem_Tap(object sender, GestureEventArgs e)
         {
-
+            DotNetMetroWikiaAPI.Api.GetNewFilesListFromWiki(test, "glee", 10);
         }
 
         private void Grid_DoubleTap(object sender, GestureEventArgs e)

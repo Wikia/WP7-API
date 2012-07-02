@@ -789,9 +789,53 @@ namespace DotNetMetroWikiaAPI
                     "index.php?title=Special:Userlogin", "", true, true, LogIn2);
             }
 
+            /// <summary>Get the source of the page.</summary>
+            /// <param name="pageURL">URL of the page.</param>
+            /// <param name="callback">Which function you need to run. Only argument must
+            /// be the source.</param>
+            public void GetPageHTM(string pageURL, Action<string> callback)
+            {
+                var client = new RestClient(pageURL);
+
+                client.CookieContainer = cookies;
+
+                var request = new RestRequest("", Method.GET);
+
+                request.AddHeader("ContentType", "application/x-www-form-urlencoded");
+
+                for (int errorCounter = 0; true; errorCounter++)
+                {
+                    try
+                    {
+                        client.ExecuteAsync(request, (responce) =>
+                        {
+                            foreach (RestSharp.RestResponseCookie buiscuit in responce.Cookies)
+                            {
+                                cookies.Add(new Uri(pageURL), new Cookie(buiscuit.Name, buiscuit.Value, buiscuit.Path, buiscuit.Domain));
+                            }
+                            callback(responce.Content);
+                        });
+                        break;
+                    }
+                    catch (WebException e)
+                    {
+                        string message = e.Message;
+                        if (Regex.IsMatch(message, ": \\(50[02349]\\) "))
+                        {		// Remote problem
+                            if (errorCounter > User.retryTimes)
+                                throw;
+                            Console.Error.WriteLine(message + " " + User.Msg("Retrying in 60 seconds."));
+                            Thread.Sleep(5000);
+                        }
+                        else
+                            throw;
+                    }
+                }
+            }
+
             /// <summary>This internal function gets the hypertext markup (HTM) of wiki-page.</summary>
             /// <param name="pageURL">Absolute or relative URL of page to get.</param>
-            /// <returns>Returns HTM source code.</returns>
+            /// <param name="callback"></param>
             public void GetPageHTM(string pageURL, Action<IRestResponse, string, object[]> callback)
             {
                 PostDataAndGetResultHTM(pageURL, "", false, true, callback);
@@ -948,6 +992,14 @@ namespace DotNetMetroWikiaAPI
 
             // Another methods added to make it work on WP7
 
+            public void ResetDictionaries()
+            {
+                wikiNSpaces = new Dictionary<string, string>();
+                WMSites = new Dictionary<string, string>();
+                userQueryLists = new Dictionary<string, string>();
+                userQueryProps = new Dictionary<string, string>();
+            }
+
             /// <summary>Opens a text file, reads all lines of the file, and then closes the
             /// file.</summary>
             /// <param name="path">The file(in the Insolated Storage) to open for reading.</param>
@@ -977,14 +1029,6 @@ namespace DotNetMetroWikiaAPI
                 }
 
                 return tempList.ToArray();
-            }
-
-            public void ResetDictionaries()
-            {
-                wikiNSpaces = new Dictionary<string, string>();
-                WMSites = new Dictionary<string, string>();
-                userQueryLists = new Dictionary<string, string>();
-                userQueryProps = new Dictionary<string, string>();
             }
 
             /// <summary>Creates a new file, write the contents to the file, and then closes

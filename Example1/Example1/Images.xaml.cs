@@ -12,24 +12,20 @@ using System.Windows.Shapes;
 using Microsoft.Phone.Controls;
 using Microsoft.Phone.Shell;
 using System.IO.IsolatedStorage;
+using RestSharp;
 
 namespace Example1
 {
     public partial class Images : PhoneApplicationPage
     {
+        static public bool isLogged = false;
+
         public Images()
         {
             InitializeComponent();
 
-            DotNetMetroWikiaAPI.Api.GetListOfWikis(new Action<List<string>>(test), 966, 976, true, "en");
-            // Set the data context of the listbox control to the sample data
             DataContext = App.ViewModel;
             this.Loaded += new RoutedEventHandler(Images_Loaded);
-        }
-
-        private void test(List<string> lista)
-        {
-            searchWikiBox.Text = lista.ElementAt(0);
         }
 
         // Load data for the ViewModel Items
@@ -75,7 +71,25 @@ namespace Example1
 
         private void Grid_DoubleTap(object sender, GestureEventArgs e)
         {
-            ImageProcessing.saveGridColumn((Grid)sender, 0, "/Images/1.jpg");
+            ImageProcessing.saveTopImagesAsTiles((Grid)sender, "/Images/1.jpg");
+        }
+
+        private void LogOut(IRestResponse e, string sendData)
+        {
+            isLogged = false;
+        }
+
+        private void PhoneApplicationPage_LostFocus(object sender, RoutedEventArgs e)
+        {
+            DotNetMetroWikiaAPI.Api.LogOut(new Action<IRestResponse, string>(LogOut));
+        }
+
+        private void PhoneApplicationPage_GotFocus(object sender, RoutedEventArgs e)
+        {
+            if (!isLogged)
+            {
+                NavigationService.Navigate(new Uri("/MainPage.xaml", UriKind.Relative));
+            }
         }
     }
 }

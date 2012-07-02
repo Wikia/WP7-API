@@ -620,7 +620,11 @@ namespace DotNetMetroWikiaAPI
             public void LoadDefaults(bool isWikia)
             {
                 if (wikiNSpaces.Count != 0 && WMSites.Count != 0)
+                {
+                    ResetDictionaries();
+                    problemInLogin();
                     return;
+                }
 
                 string[] wikiNSNames = { "Media", "Special", "", "Talk", "User", "User talk", name,
 				name + " talk", "Image", "Image talk", "MediaWiki", "MediaWiki talk", "Template",
@@ -886,10 +890,7 @@ namespace DotNetMetroWikiaAPI
                 int tokenPos = respStr.IndexOf("token=\"");
                 if (tokenPos < 1)
                 {
-                    wikiNSpaces = new Dictionary<string, string>();
-                    WMSites = new Dictionary<string, string>();
-                    userQueryLists = new Dictionary<string, string>();
-                    userQueryProps = new Dictionary<string, string>();
+                    ResetDictionaries();
                     problemInLogin();
                     return;
                 }
@@ -905,10 +906,7 @@ namespace DotNetMetroWikiaAPI
 
                 if (!respStr.Contains("result=\"Success\""))
                 {
-                    wikiNSpaces = new Dictionary<string, string>();
-                    WMSites = new Dictionary<string, string>();
-                    userQueryLists = new Dictionary<string, string>();
-                    userQueryProps = new Dictionary<string, string>();
+                    ResetDictionaries();
                     problemInLogin();
                     return;
                 }
@@ -940,10 +938,7 @@ namespace DotNetMetroWikiaAPI
 
                 if (respStr.Contains("<div class=\"errorbox\">"))
                 {
-                    wikiNSpaces = new Dictionary<string, string>();
-                    WMSites = new Dictionary<string, string>();
-                    userQueryLists = new Dictionary<string, string>();
-                    userQueryProps = new Dictionary<string, string>();
+                    ResetDictionaries();
                     problemInLogin();
                     return;
                 }
@@ -982,6 +977,14 @@ namespace DotNetMetroWikiaAPI
                 }
 
                 return tempList.ToArray();
+            }
+
+            public void ResetDictionaries()
+            {
+                wikiNSpaces = new Dictionary<string, string>();
+                WMSites = new Dictionary<string, string>();
+                userQueryLists = new Dictionary<string, string>();
+                userQueryProps = new Dictionary<string, string>();
             }
 
             /// <summary>Creates a new file, write the contents to the file, and then closes

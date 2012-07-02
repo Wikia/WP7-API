@@ -37,6 +37,7 @@ using System.Windows.Shapes;
 using System.Collections.Generic;
 using System.IO;
 using System.Xml;
+using RestSharp;
 
 namespace DotNetMetroWikiaAPI
 {
@@ -71,6 +72,16 @@ namespace DotNetMetroWikiaAPI
         {
             usedWiki = new Site(address, username, password, successInLogin,
                 failInLogin);
+        }
+
+        /// <summary>Method to log out from the api of wikia.</summary>
+        /// <param name="callback">What should happen when user will be logged out.
+        /// Using only args: IRestResponce queryResponce and string sendData.</param>
+        public static void LogOut(Delegate callback)
+        {
+            new QueryMaker(usedWiki, "action=logout", callback);
+            usedWiki.ResetDictionaries();
+            usedWiki = null;
         }
 
         /// <summary>Method to get response for a query. It's recommended to use other

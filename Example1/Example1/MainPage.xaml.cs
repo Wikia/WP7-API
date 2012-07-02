@@ -24,6 +24,8 @@ namespace Example1
 
         private void successInLogin()
         {
+            passwordBox1.Password = "";
+            Images.isLogged = true;
             NavigationService.Navigate(new Uri("/Images.xaml", UriKind.Relative));
             textBlock3.Visibility = Visibility.Collapsed;
             button1.IsEnabled = true;
@@ -45,7 +47,8 @@ namespace Example1
             }
             catch
             {
-                //Something to do.
+                //Something to do. But it's hard to get here.
+                // TODO: Check if that try-catch is necessary.
             }
         }
     }

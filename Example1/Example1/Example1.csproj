@@ -49,13 +49,24 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="AsyncCtpLibrary_Phone">
+<<<<<<< HEAD
       <HintPath>C:\Users\Marcin\Documents\Microsoft Visual Studio Async CTP\Samples\(C# Windows Phone) Netflix\Netflix\Bin\Debug\AsyncCtpLibrary_Phone.dll</HintPath>
+=======
+      <HintPath>.\AsyncCtpLibrary_Phone.dll</HintPath>
+    </Reference>
+    <Reference Include="DotNetMetroWikiaAPI">
+      <HintPath>.\DotNetMetroWikiaAPI.dll</HintPath>
+>>>>>>> f3f873f26a09ae05e79df4aa23f8225a946d6e97
     </Reference>
     <Reference Include="Microsoft.Phone" />
     <Reference Include="Microsoft.Phone.Controls, Version=7.0.0.0, Culture=neutral, PublicKeyToken=24eec0d8c86cda1e, processorArchitecture=MSIL" />
     <Reference Include="Microsoft.Phone.Interop" />
     <Reference Include="RestSharp.WindowsPhone">
+<<<<<<< HEAD
       <HintPath>C:\Users\Marcin\Downloads\restsharp-RestSharp-7229095\restsharp-RestSharp-7229095\RestSharp.WindowsPhone.Mango\Bin\Release\RestSharp.WindowsPhone.dll</HintPath>
+=======
+      <HintPath>.\RestSharp.WindowsPhone.dll</HintPath>
+>>>>>>> f3f873f26a09ae05e79df4aa23f8225a946d6e97
     </Reference>
     <Reference Include="System.Windows" />
     <Reference Include="system" />

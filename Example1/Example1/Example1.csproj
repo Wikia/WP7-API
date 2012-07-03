@@ -48,21 +48,24 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="AsyncCtpLibrary_Phone">
+      <HintPath>.\AsyncCtpLibrary_Phone.dll</HintPath>
+    </Reference>
     <Reference Include="DotNetMetroWikiaAPI">
       <HintPath>.\DotNetMetroWikiaAPI.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.Phone" />
     <Reference Include="Microsoft.Phone.Controls, Version=7.0.0.0, Culture=neutral, PublicKeyToken=24eec0d8c86cda1e, processorArchitecture=MSIL" />
     <Reference Include="Microsoft.Phone.Interop" />
+    <Reference Include="RestSharp.WindowsPhone">
+      <HintPath>.\RestSharp.WindowsPhone.dll</HintPath>
+    </Reference>
     <Reference Include="System.Windows" />
     <Reference Include="system" />
     <Reference Include="System.Core" />
     <Reference Include="System.Net" />
     <Reference Include="System.Xml" />
     <Reference Include="mscorlib.extensions" />
-    <Reference Include="WindowsPhonePostClient">
-      <HintPath>.\WindowsPhonePostClient.dll</HintPath>
-    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="App.xaml.cs">

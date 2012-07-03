@@ -12,7 +12,7 @@
     FontSize="{StaticResource PhoneFontSizeNormal}"
     Foreground="{StaticResource PhoneForegroundBrush}"
     SupportedOrientations="Portrait"  Orientation="Portrait"
-    shell:SystemTray.IsVisible="True">
+    shell:SystemTray.IsVisible="True" LostFocus="PhoneApplicationPage_LostFocus" GotFocus="PhoneApplicationPage_GotFocus">
 
     <!--LayoutRoot is the root grid where all page content is placed-->
     <Grid x:Name="LayoutRoot" Background="Transparent">
@@ -20,48 +20,52 @@
         <controls:Pivot Title="Wikia API Image Example" SelectionChanged="Pivot_SelectionChanged">
             <!--Pivot item one-->
             <controls:PivotItem Header="Wikis">
-                <ListBox x:Name="Wikis">
-                    <ListBoxItem HorizontalAlignment="Center">
-                        <Grid Width="456">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock VerticalAlignment="Center" Grid.Column="0" Text="My choise:"/>
-                            <TextBox Grid.Column="1" />
-                        </Grid>
-                    </ListBoxItem>
-                    <ListBoxItem HorizontalAlignment="Center" Tap="ListBoxItem_Tap">
-                        <TextBlock Text="glee wiki" FontSize="36" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10" />
-                    </ListBoxItem>
-                    <ListBoxItem HorizontalAlignment="Center">
-                        <TextBlock Text="BATTLEFIELD WIKI" FontSize="36" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10" />
-                    </ListBoxItem>
-                    <ListBoxItem HorizontalAlignment="Center">
-                        <TextBlock Text="Dragon Age Wiki" FontSize="36" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10" />
-                    </ListBoxItem>
-                    <ListBoxItem HorizontalAlignment="Center">
-                        <TextBlock Text="Academic Jobs Wiki" FontSize="36" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10" />
-                    </ListBoxItem>
-                    <ListBoxItem HorizontalAlignment="Center">
-                        <TextBlock Text="Borderlands Wiki" FontSize="36" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10" />
-                    </ListBoxItem>
-                    <ListBoxItem HorizontalAlignment="Center">
-                        <TextBlock Text="One Wiki to Rule Them All" FontSize="36" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10" />
-                    </ListBoxItem>
-                    <ListBoxItem HorizontalAlignment="Center">
-                        <TextBlock Text="Logopedia" FontSize="36" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10" />
-                    </ListBoxItem>
-                    <ListBoxItem HorizontalAlignment="Center">
-                        <TextBlock Text="Solar Cookers World Network" FontSize="36" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10" />
-                    </ListBoxItem>
-                    <ListBoxItem HorizontalAlignment="Center">
-                        <TextBlock Text="Snow White and the Huntsman Wiki" FontSize="36" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10" />
-                    </ListBoxItem>
-                    <ListBoxItem HorizontalAlignment="Center">
-                        <TextBlock Text="Very Long Name For Yet Nonexisting Wiki" FontSize="36" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10" />
-                    </ListBoxItem>
-                </ListBox>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition/>
+                    </Grid.RowDefinitions>
+                    <Grid Grid.Row="0" Width="456">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock VerticalAlignment="Center" Grid.Column="0" Text="My choise:"/>
+                        <TextBox Grid.Column="1" Name="searchWikiBox" />
+                    </Grid>
+                    <ListBox x:Name="Wikis" Grid.Row="1" >
+                        <ListBoxItem HorizontalAlignment="Center" Tap="ListBoxItem_Tap">
+                            <TextBlock Text="glee wiki" FontSize="36" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10" />
+                        </ListBoxItem>
+                        <ListBoxItem HorizontalAlignment="Center">
+                            <TextBlock Text="BATTLEFIELD WIKI" FontSize="36" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10" />
+                        </ListBoxItem>
+                        <ListBoxItem HorizontalAlignment="Center">
+                            <TextBlock Text="Dragon Age Wiki" FontSize="36" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10" />
+                        </ListBoxItem>
+                        <ListBoxItem HorizontalAlignment="Center">
+                            <TextBlock Text="Academic Jobs Wiki" FontSize="36" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10" />
+                        </ListBoxItem>
+                        <ListBoxItem HorizontalAlignment="Center">
+                            <TextBlock Text="Borderlands Wiki" FontSize="36" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10" />
+                        </ListBoxItem>
+                        <ListBoxItem HorizontalAlignment="Center">
+                            <TextBlock Text="One Wiki to Rule Them All" FontSize="36" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10" />
+                        </ListBoxItem>
+                        <ListBoxItem HorizontalAlignment="Center">
+                            <TextBlock Text="Logopedia" FontSize="36" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10" />
+                        </ListBoxItem>
+                        <ListBoxItem HorizontalAlignment="Center">
+                            <TextBlock Text="Solar Cookers World Network" FontSize="36" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10" />
+                        </ListBoxItem>
+                        <ListBoxItem HorizontalAlignment="Center">
+                            <TextBlock Text="Snow White and the Huntsman Wiki" FontSize="36" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10" />
+                        </ListBoxItem>
+                        <ListBoxItem HorizontalAlignment="Center">
+                            <TextBlock Text="Animepedia" FontSize="36" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10" />
+                        </ListBoxItem>
+                    </ListBox>
+                </Grid>
             </controls:PivotItem>
 
             <!--Pivot item two-->
@@ -106,7 +110,9 @@
 
             <!--Pivot item three-->
             <controls:PivotItem Header="RSS">
-                <Grid/>
+                <Grid>
+                    <Image Height="257" HorizontalAlignment="Left" Margin="97,33,0,0" Name="backImageTEST" Stretch="Fill" VerticalAlignment="Top" Width="251" />
+                </Grid>
             </controls:PivotItem>
         </controls:Pivot>
     </Grid>

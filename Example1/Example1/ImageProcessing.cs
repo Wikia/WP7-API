@@ -17,26 +17,21 @@ namespace Example1
 {
     static public class ImageProcessing
     {
-        static public void saveGridColumn(Grid target, int columnNr, string name)
+        static public void saveTopImagesAsTiles(Grid target, string name)
         {
-            if ((columnNr < 0) || (columnNr > Grid.GetColumnSpan(target)))
+            try
             {
-                throw new IndexOutOfRangeException("Column out of Grid range.");
-            } else {
-                try
+                IsolatedStorageFile isf = IsolatedStorageFile.GetUserStoreForApplication();
+                System.Windows.Media.Imaging.WriteableBitmap wb = new System.Windows.Media.Imaging.WriteableBitmap(target, null);
+                isf.DeleteFile(name);
+                using (IsolatedStorageFileStream rawStream = isf.CreateFile(name))
                 {
-                    IsolatedStorageFile isf = IsolatedStorageFile.GetUserStoreForApplication();
-                    System.Windows.Media.Imaging.WriteableBitmap wb = new System.Windows.Media.Imaging.WriteableBitmap(target, null);
-                    isf.DeleteFile(name);
-                    using (IsolatedStorageFileStream rawStream = isf.CreateFile(name))
-                    {
-                        wb.SaveJpeg(rawStream, wb.PixelWidth, wb.PixelHeight, 0, 100);
-                    }
+                    wb.SaveJpeg(rawStream, wb.PixelWidth, wb.PixelHeight, 0, 100);
                 }
-                catch ( Exception e);
-                {
-                    Thread.Sleep(2000);
-                }
+            }
+            catch (Exception e)
+            {
+                Thread.Sleep(2000);
             }
         }
     }

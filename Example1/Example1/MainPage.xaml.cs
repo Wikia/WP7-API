@@ -22,16 +22,33 @@ namespace Example1
             InitializeComponent();
         }
 
+        private void successInLogin()
+        {
+            passwordBox1.Password = "";
+            Images.isLogged = true;
+            NavigationService.Navigate(new Uri("/Images.xaml", UriKind.Relative));
+            textBlock3.Visibility = Visibility.Collapsed;
+            button1.IsEnabled = true;
+        }
+
+        private void failInLogin()
+        {
+            textBlock3.Visibility = Visibility.Visible;
+            button1.IsEnabled = true;
+        }
+
         private void button1_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                //Site wikia = new Site("http://wikia.com", textBox1.Text, passwordBox1.Password);
-                NavigationService.Navigate(new Uri("/Images.xaml", UriKind.Relative));
+                Api.LogIn("http://www.wikia.com", textBox1.Text, passwordBox1.Password, successInLogin, failInLogin);
+
+                button1.IsEnabled = false;
             }
-            catch (Exception omg)
+            catch
             {
-                textBox1.Text = omg.ToString();
+                //Something to do. But it's hard to get here.
+                // TODO: Check if that try-catch is necessary.
             }
         }
     }

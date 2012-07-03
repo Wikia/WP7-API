@@ -12,16 +12,19 @@ using System.Windows.Shapes;
 using Microsoft.Phone.Controls;
 using Microsoft.Phone.Shell;
 using System.IO.IsolatedStorage;
+using RestSharp;
+using System.Windows.Media.Imaging;
 
 namespace Example1
 {
     public partial class Images : PhoneApplicationPage
     {
+        static public bool isLogged = false;
+
         public Images()
         {
             InitializeComponent();
 
-            // Set the data context of the listbox control to the sample data
             DataContext = App.ViewModel;
             this.Loaded += new RoutedEventHandler(Images_Loaded);
         }
@@ -62,14 +65,45 @@ namespace Example1
             }
         }
 
+        private void test2(WriteableBitmap downloadedImage)
+        {
+            backImageTEST.Source = downloadedImage;
+        }
+
+        private void test(List<DotNetMetroWikiaAPI.Api.FileInfo> lista)
+        {
+            searchWikiBox.Text = lista.ElementAt(0).ToString();
+            /// TODO: Need to have working imagecrop!!!
+            lista.ElementAt(0).SetAddressOfFile("http://images1.wikia.nocookie.net/__cb20120703141918/glee/images/a/a2/Glee_Season_3.jpg");
+            DotNetMetroWikiaAPI.Api.DownloadImage(test2, lista.ElementAt(0));
+        }
+
         private void ListBoxItem_Tap(object sender, GestureEventArgs e)
         {
-
+            DotNetMetroWikiaAPI.Api.GetNewFilesListFromWiki(test, "glee", 10);
         }
 
         private void Grid_DoubleTap(object sender, GestureEventArgs e)
         {
-            ImageProcessing.saveGridColumn((Grid)sender, 0, "/Images/1.jpg");
+            ImageProcessing.saveTopImagesAsTiles((Grid)sender, "/Images/1.jpg");
+        }
+
+        private void LogOut(IRestResponse e, string sendData)
+        {
+            isLogged = false;
+        }
+
+        private void PhoneApplicationPage_LostFocus(object sender, RoutedEventArgs e)
+        {
+            DotNetMetroWikiaAPI.Api.LogOut(new Action<IRestResponse, string>(LogOut));
+        }
+
+        private void PhoneApplicationPage_GotFocus(object sender, RoutedEventArgs e)
+        {
+            if (!isLogged)
+            {
+                NavigationService.Navigate(new Uri("/MainPage.xaml", UriKind.Relative));
+            }
         }
     }
 }

@@ -62,14 +62,38 @@ namespace DotNetMetroWikiaAPI
                 RunQuery(query);
             }
 
-            private void callbackWrapper(IRestResponse e, string sendData, params object[] nullArgs)
+            /// <summary>Post another things(not exactly query).</summary>
+            /// <param name="site">Site you want to use.</param>
+            /// <param name="request">What do you need from api.</param>
+            /// <param name="callback">Delegate of method you want to use. It must have
+            /// two more argument fields at the beginning for IRestResponse queryResponse and
+            /// string sendData.</param>
+            public QueryMaker(Delegate callback, string request, Site site)
+            {
+                this.callback = callback;
+                this.site = site;
+
+                RunRequest(request);
+            }
+
+            private void callbackRequestWrapper(IRestResponse e, string sendData, params object[] nullArgs)
+            {
+                callback.DynamicInvoke(e, sendData);
+            }
+
+            private void callbackQueryWrapper(IRestResponse e, string sendData, params object[] nullArgs)
             {
                 callback.DynamicInvoke(e.Content, sendData, args);
             }
 
+            private void RunRequest(string request)
+            {
+                site.PostDataAndGetResultHTM(site.site + "/api.php", request, callbackRequestWrapper);
+            }
+
             private void RunQuery(string query)
             {
-                site.PostDataAndGetResultHTM(site.site + "/api.php", "action=query&" + query, callbackWrapper);
+                site.PostDataAndGetResultHTM(site.site + "/api.php", "action=query&" + query, callbackQueryWrapper);
             }
         }
     }

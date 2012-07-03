@@ -39,6 +39,9 @@ using System.IO;
 using System.Xml;
 using RestSharp;
 using System.Threading;
+using System.Windows.Media.Imaging;
+using System.Text;
+using Microsoft.Phone;
 
 namespace DotNetMetroWikiaAPI
 {
@@ -48,6 +51,7 @@ namespace DotNetMetroWikiaAPI
         static bool isTempDelFree = true;
         static Delegate tempDel = null;
         static int tempInt = -1;
+        static string tempAddress = null;
 
         /// <summary>Method to log in to the www.wikia.com api.</summary>
         /// <param name="username">Username.</param>
@@ -122,9 +126,10 @@ namespace DotNetMetroWikiaAPI
                         listOfWikis.Add(HttpUtility.HtmlDecode(reader.Value));
                 } while (reader.Read());
             reader.Close();
-            tempDel.DynamicInvoke(listOfWikis);
+            Delegate temp = tempDel;
             tempDel = null;
             isTempDelFree = true;
+            temp.DynamicInvoke(listOfWikis);
         }
 
         private static void SendBackNumberOfWikis(string response, string postData,
@@ -140,9 +145,10 @@ namespace DotNetMetroWikiaAPI
                         number++;
                 } while (reader.Read());
             reader.Close();
-            tempDel.DynamicInvoke(number);
+            Delegate temp = tempDel;
             tempDel = null;
             isTempDelFree = true;
+            temp.DynamicInvoke(number);
         }
 
         /// <summary>Get list of all wikis.</summary>
@@ -283,25 +289,36 @@ namespace DotNetMetroWikiaAPI
             }
         }
 
-        private static void ReturnNewFilesListWrapper(IRestResponse e, string postData, List<FileInfo> files)
+        private static void ReturnNewFilesListWrapper(string content, object[] args)
         {
-            tempInt--;
-            if (tempInt > 0 )
+            int counter = (int)args[1];
+            List<FileInfo> files = (List<FileInfo>)args[0];
+            counter++;
+            XmlReader reader = XmlReader.Create(new StringReader(content));
+            if (reader.ReadToDescendant("page"))
             {
-                /// TODO: Parse XML with Image data to get Username
-                /// TODO: Find a way to nicely do counting of Images.
-                SendQuery(new Action<IRestResponse, string, List<FileInfo>>
-                    (ReturnNewFilesListWrapper), "generator=images&titles="
-                    + files[0].GetFilename(), files);
+                files[counter-1].SetFileID(int.Parse(HttpUtility.HtmlDecode(reader
+                    .GetAttribute(0))));
+                if (reader.ReadToDescendant("ii"))
+                    files[counter - 1].SetByUsername(HttpUtility.HtmlDecode(reader
+                        .GetAttribute(1)));
+            }
+            reader.Close();
+            if ( counter < tempInt )
+            {
+                usedWiki.GetPageHTM(tempAddress + "/api.php?action=query&titles=File:"
+                    + files[counter].GetFilename() + "&prop=imageinfo&format=xml",
+                    ReturnNewFilesListWrapper, files, counter);
             } else {
-                tempDel.DynamicInvoke(files);
+                Delegate temp = tempDel;
                 tempDel = null;
                 tempInt = -1;
                 isTempDelFree = true;
+                temp.DynamicInvoke(files);
             }
         }
 
-        private static void GetNewFilesListWrapper(string pageCode)
+        private static void GetNewFilesListWrapper(string pageCode, params object[] args)
         {
             List<FileInfo> files = new List<FileInfo>();
 
@@ -313,7 +330,8 @@ namespace DotNetMetroWikiaAPI
                 reader.ReadToFollowing("title");
                 do
                 {
-                    filename = HttpUtility.HtmlDecode(reader.ReadElementContentAsString());
+                    filename = HttpUtility.HtmlDecode(reader
+                        .ReadElementContentAsString());
                     reader.ReadToFollowing("pubDate");
                     date = HttpUtility.HtmlDecode(reader.ReadElementContentAsString());
                     files.Add(new FileInfo(filename, date));
@@ -321,20 +339,37 @@ namespace DotNetMetroWikiaAPI
                 } while ((reader.ReadToFollowing("title")) && (counter < tempInt));
                 tempInt = counter;
                 reader.Close();
-                SendQuery(new Action<IRestResponse, string, List<FileInfo>>
-                    (ReturnNewFilesListWrapper), "titles=File:"
-                    + files[0].GetFilename() + "&prop=imageinfo", files);
+                usedWiki.GetPageHTM(tempAddress + "/api.php?action=query&titles=File:"
+                    + files[0].GetFilename() + "&prop=imageinfo&format=xml",
+                    ReturnNewFilesListWrapper, files, 0);
+
+                /// TODO: Cross recurrent to download address of file.
             }
             else
             {
                 reader.Close();
+                tempDel = null;
+                tempInt = -1;
+                isTempDelFree = true;
                 throw new WebException("Response from the server isn't valid.");
             }
         }
 
-        /// <summary>Get list of up to 18 New Files from choosen wiki.</summary>
+        /// <summary>Get list of New Files from choosen wiki. Returned list will have
+        /// only as many entries, as many will rss of Special:NewFiles have.</summary>
         /// <param name="callback">Method using</param>
         /// <param name="wikiname">Prefix used by choosen wiki.</param>
+        public static void GetNewFilesListFromWiki(Action<List<FileInfo>> callback,
+            string wikiname)
+        {
+            GetNewFilesListFromWiki(callback, wikiname, 100);
+        }
+
+        /// <summary>Get list of New Files from choosen wiki. Returned list will have
+        /// only as many entries, as many will rss of Special:NewFiles have.</summary>
+        /// <param name="callback">Method using</param>
+        /// <param name="wikiname">Prefix used by choosen wiki.</param>
+        /// <param name="quantity">How many new files you want to get.</param>
         public static void GetNewFilesListFromWiki(Action<List<FileInfo>> callback,
             string wikiname, int quantity)
         {
@@ -343,8 +378,42 @@ namespace DotNetMetroWikiaAPI
             isTempDelFree = false;
             tempInt = quantity;
             int beginning = usedWiki.site.IndexOf(".wikia");
-            usedWiki.GetPageHTM("http://" + wikiname + usedWiki.site
-                .Substring(beginning) + "/wiki/Special:NewFiles?feed=rss", GetNewFilesListWrapper);
+            tempAddress = "http://" + wikiname + usedWiki.site.Substring(beginning);
+            usedWiki.GetPageHTM(tempAddress + "/wiki/Special:NewFiles?feed=rss",
+                GetNewFilesListWrapper);
+        }
+
+        private static void DownloadImageWrapper(IRestResponse response, params object[] args)
+        {
+            byte[] imageData = response.RawBytes;
+            using (Stream ms = new MemoryStream(imageData))
+            {
+                WriteableBitmap wbImg = PictureDecoder.DecodeJpeg(ms);
+
+                Delegate temp = tempDel;
+                tempDel = null;
+                isTempDelFree = true;
+                temp.DynamicInvoke(wbImg);
+            };
+
+            tempDel = null;
+            isTempDelFree = true;
+        }
+
+        public static void DownloadImage(Action<WriteableBitmap> callback, FileInfo file)
+        {
+            while (!isTempDelFree) { Thread.Sleep(2000); };
+            tempDel = callback;
+            isTempDelFree = false;
+            if (file.isImage())
+            {
+                usedWiki.GetPageHTM(file.GetAddressOfFile(), DownloadImageWrapper);
+            }
+            else
+            {
+                tempDel = null;
+                isTempDelFree = true;
+            }
         }
     }
 }

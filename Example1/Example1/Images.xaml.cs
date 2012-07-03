@@ -13,6 +13,7 @@ using Microsoft.Phone.Controls;
 using Microsoft.Phone.Shell;
 using System.IO.IsolatedStorage;
 using RestSharp;
+using System.Windows.Media.Imaging;
 
 namespace Example1
 {
@@ -64,9 +65,17 @@ namespace Example1
             }
         }
 
+        private void test2(WriteableBitmap downloadedImage)
+        {
+            backImageTEST.Source = downloadedImage;
+        }
+
         private void test(List<DotNetMetroWikiaAPI.Api.FileInfo> lista)
         {
             searchWikiBox.Text = lista.ElementAt(0).ToString();
+            /// TODO: Need to have working imagecrop!!!
+            lista.ElementAt(0).SetAddressOfFile("http://images1.wikia.nocookie.net/__cb20120703141918/glee/images/a/a2/Glee_Season_3.jpg");
+            DotNetMetroWikiaAPI.Api.DownloadImage(test2, lista.ElementAt(0));
         }
 
         private void ListBoxItem_Tap(object sender, GestureEventArgs e)

@@ -110,7 +110,9 @@
 
             <!--Pivot item three-->
             <controls:PivotItem Header="RSS">
-                <Grid/>
+                <Grid>
+                    <Image Height="257" HorizontalAlignment="Left" Margin="97,33,0,0" Name="backImageTEST" Stretch="Fill" VerticalAlignment="Top" Width="251" />
+                </Grid>
             </controls:PivotItem>
         </controls:Pivot>
     </Grid>

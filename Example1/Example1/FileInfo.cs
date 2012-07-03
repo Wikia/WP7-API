@@ -47,6 +47,8 @@ namespace DotNetMetroWikiaAPI
             DateTime pubDate;
             /// <summary>Which User of Wikia.com publicated that file.</summary>
             string byUsername;
+            int FileID = -1;
+            string addressOfFile;
 
             /// <summary>Creates FileInfo Object.</summary>
             /// <param name="filename">Name of the file.</param>
@@ -58,7 +60,7 @@ namespace DotNetMetroWikiaAPI
             /// <param name="second">Second of publication.</param>
             public FileInfo(string filename, int year, int month, int day, int hour,
                 int minute, int second) : this(filename, year, month, day, hour, minute,
-                second, "")
+                second, "", -1)
             { }
 
             /// <summary>Creates FileInfo Object.</summary>
@@ -71,11 +73,12 @@ namespace DotNetMetroWikiaAPI
             /// <param name="second">Second of publication.</param>
             /// <param name="username">Username who publicated that file.</param>
             public FileInfo(string filename, int year, int month, int day, int hour,
-                int minute, int second, string username)
+                int minute, int second, string username, int id)
             {
                 this.filename = filename;
                 pubDate = new DateTime(year, month, day, hour, minute, second);
                 byUsername = username;
+                FileID = id;
             }
 
             /// <summary>Creates FileInfo Object.</summary>
@@ -84,7 +87,7 @@ namespace DotNetMetroWikiaAPI
             /// Day of week, Year Month Day Hour:Minute:Second ...
             /// f.e. Mon, 2012 Jul 02 17:50:15 +0000</param>
             public FileInfo(string filename, string date)
-                : this(filename, date, "")
+                : this(filename, date, "", -1)
             { }
 
             /// <summary>Creates FileInfo Object.</summary>
@@ -93,7 +96,7 @@ namespace DotNetMetroWikiaAPI
             /// Day of week, Year Month Day Hour:Minute:Second ...
             /// f.e. Mon, 2012 Jul 02 17:50:15 +0000</param>
             /// <param name="username">Username who publicated that file.</param>
-            public FileInfo(string filename, string date, string username)
+            public FileInfo(string filename, string date, string username, int id)
             {
                 this.filename = filename;
 
@@ -134,6 +137,17 @@ namespace DotNetMetroWikiaAPI
                 pubDate = new DateTime(year, month, day, hour, minute,
                     second);
                 byUsername = username;
+                FileID = id;
+            }
+
+            /// <summary>Check if the FileInfo applies to an image file.</summary>
+            public bool isImage()
+            {
+                if (filename.EndsWith(".jpg") || filename.EndsWith(".png") || filename.EndsWith(".gif") || filename.EndsWith(".jpeg"))
+                {
+                    return true;
+                }
+                return false;
             }
 
             public string GetFilename()
@@ -141,14 +155,29 @@ namespace DotNetMetroWikiaAPI
                 return filename;
             }
 
+            public string GetAddressOfFile()
+            {
+                return addressOfFile;
+            }
+
             public void SetByUsername(string username)
             {
                 byUsername = username;
             }
 
+            public void SetFileID(int ID)
+            {
+                FileID = ID;
+            }
+
+            public void SetAddressOfFile(string address)
+            {
+                addressOfFile = address;
+            }
+
             public override string ToString()
             {
-                return filename + "send by " + byUsername;
+                return filename + " send by " + byUsername;
             }
         }
     }

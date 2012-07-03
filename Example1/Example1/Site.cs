@@ -793,7 +793,7 @@ namespace DotNetMetroWikiaAPI
             /// <param name="pageURL">URL of the page.</param>
             /// <param name="callback">Which function you need to run. Only argument must
             /// be the source.</param>
-            public void GetPageHTM(string pageURL, Action<string> callback)
+            public void GetPageHTM(string pageURL, Action<IRestResponse, object[]> callback, params object[] args)
             {
                 var client = new RestClient(pageURL);
 
@@ -813,7 +813,51 @@ namespace DotNetMetroWikiaAPI
                             {
                                 cookies.Add(new Uri(pageURL), new Cookie(buiscuit.Name, buiscuit.Value, buiscuit.Path, buiscuit.Domain));
                             }
-                            callback(responce.Content);
+                            callback(responce, args);
+                        });
+                        break;
+                    }
+                    catch (WebException e)
+                    {
+                        string message = e.Message;
+                        if (Regex.IsMatch(message, ": \\(50[02349]\\) "))
+                        {		// Remote problem
+                            if (errorCounter > User.retryTimes)
+                                throw;
+                            Console.Error.WriteLine(message + " " + User.Msg("Retrying in 60 seconds."));
+                            Thread.Sleep(5000);
+                        }
+                        else
+                            throw;
+                    }
+                }
+            }
+
+            /// <summary>Get the source of the page.</summary>
+            /// <param name="pageURL">URL of the page.</param>
+            /// <param name="callback">Which function you need to run. Only argument must
+            /// be the source.</param>
+            public void GetPageHTM(string pageURL, Action<string, object[]> callback, params object[] args)
+            {
+                var client = new RestClient(pageURL);
+
+                client.CookieContainer = cookies;
+
+                var request = new RestRequest("", Method.GET);
+
+                request.AddHeader("ContentType", "application/x-www-form-urlencoded");
+
+                for (int errorCounter = 0; true; errorCounter++)
+                {
+                    try
+                    {
+                        client.ExecuteAsync(request, (responce) =>
+                        {
+                            foreach (RestSharp.RestResponseCookie buiscuit in responce.Cookies)
+                            {
+                                cookies.Add(new Uri(pageURL), new Cookie(buiscuit.Name, buiscuit.Value, buiscuit.Path, buiscuit.Domain));
+                            }
+                            callback(responce.Content, args);
                         });
                         break;
                     }

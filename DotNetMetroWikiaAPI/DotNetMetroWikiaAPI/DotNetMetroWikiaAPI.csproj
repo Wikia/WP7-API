@@ -58,6 +58,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Api.cs" />
+    <Compile Include="FileInfo.cs" />
     <Compile Include="PageList.cs" />
     <Compile Include="QueryMaker.cs" />
     <Compile Include="Site.cs" />

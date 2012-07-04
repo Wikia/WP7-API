@@ -1036,6 +1036,7 @@ namespace DotNetMetroWikiaAPI
 
             // Another methods added to make it work on WP7
 
+            /// <summary>Used to reset all static dictionaried after logout.</summary>
             public void ResetDictionaries()
             {
                 wikiNSpaces = new Dictionary<string, string>();
@@ -1093,7 +1094,6 @@ namespace DotNetMetroWikiaAPI
                     {
                         StreamWriter writer = new StreamWriter(rawStream);
 
-                        //Probably would work with that encoding.
                         writer.WriteLine(contents, encoding);
 
                         writer.Close();

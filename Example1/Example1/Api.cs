@@ -389,6 +389,7 @@ namespace DotNetMetroWikiaAPI
             using (Stream ms = new MemoryStream(imageData))
             {
                 WriteableBitmap wbImg = PictureDecoder.DecodeJpeg(ms);
+                
 
                 Delegate temp = tempDel;
                 tempDel = null;

@@ -16,6 +16,8 @@ using RestSharp;
 using System.Windows.Media.Imaging;
 using System.IO;
 using System.Text;
+using System.Collections.ObjectModel;
+using System.Threading;
 
 namespace Example1
 {
@@ -23,18 +25,19 @@ namespace Example1
     {
         /// <summary>Is user logged into the wikia.com .</summary>
         static public bool isLogged = false;
-        static private Dictionary<DotNetMetroWikiaAPI.Api.FileInfo, WriteableBitmap>
+        private Dictionary<DotNetMetroWikiaAPI.Api.FileInfo, WriteableBitmap>
             TenImages = new Dictionary<DotNetMetroWikiaAPI.Api.FileInfo,
                 WriteableBitmap>();
+        private List<DotNetMetroWikiaAPI.Api.FileInfo> ListOfFiles = new
+            List<DotNetMetroWikiaAPI.Api.FileInfo>();
         /// <summary>Consist names and prefixes of 10 remembered wikis.</summary>
-        static private Dictionary<string, string> TenWikias = new Dictionary<string,
-            string>();
+        public ObservableCollection<PairOfNames> TenWikias { get; set; }
+        private string prefix = "";
+        private int tempCounter = 0;
 
         public Images()
         {
             InitializeComponent();
-
-            GetTenWikisFromFile();
 
             DataContext = App.ViewModel;
             this.Loaded += new RoutedEventHandler(Images_Loaded);
@@ -44,6 +47,10 @@ namespace Example1
         /// time run - creates file with default ones.</summary>
         private void GetTenWikisFromFile()
         {
+            TenWikias = new ObservableCollection<PairOfNames>();
+
+            Wikis.ItemsSource = TenWikias;
+
             IsolatedStorageFile isf = IsolatedStorageFile.GetUserStoreForApplication();
 
             string path = "Resources" + System.IO.Path.DirectorySeparatorChar
@@ -58,49 +65,76 @@ namespace Example1
                     {
                         StreamReader reader = new StreamReader(rawStream, Encoding.UTF8);
 
-                        for (int i = 0; reader.EndOfStream; i++)
+                        for (int i = 0; ((i<10)&&(!reader.EndOfStream)); i++)
                         {
                             string name = reader.ReadLine();
                             string prefix = reader.ReadLine();
                             string stars = reader.ReadLine();
                             if (stars.Equals("**********"))
                             {
-                                TenWikias.Add(name, prefix);
+                                TenWikias.Add(new PairOfNames());
+                                TenWikias[i].NameOfWiki = name;
+                                TenWikias[i].PrefixOfWiki = prefix;
                             }
                         }
 
                         reader.Close();
                     }
                 }
-                catch
+                catch (Exception e)
                 {
+                    searchWikiBox.Text = e.Message;
                     // TODO: Do something with that Exception.
                 }
             }
             else
             {
-                TenWikias.Add("glee wiki", "glee");
-                TenWikias.Add("BATTLEFIELD WIKI", "battlefield");
-                TenWikias.Add("animepedia", "anime");
-                TenWikias.Add("Logopedia", "logos");
-                TenWikias.Add("Academic Jobs", "academicjobs");
-                TenWikias.Add("Borderlands Wiki", "borderlands");
-                TenWikias.Add("Solar Cookers World", "solarcooking");
-                TenWikias.Add("Snow White and the Huntsman Wiki",
-                    "snowwhiteandthehuntsman");
-                TenWikias.Add("The One Wiki to Rule Them All", "lotr");
-                TenWikias.Add("Dragon Age Wiki", "dragonage");
+                TenWikias.Add(new PairOfNames());
+                TenWikias.Add(new PairOfNames());
+                TenWikias.Add(new PairOfNames());
+                TenWikias.Add(new PairOfNames());
+                TenWikias.Add(new PairOfNames());
+                TenWikias.Add(new PairOfNames());
+                TenWikias.Add(new PairOfNames());
+                TenWikias.Add(new PairOfNames());
+                TenWikias.Add(new PairOfNames());
+                TenWikias.Add(new PairOfNames());
+                TenWikias[0].NameOfWiki = "glee wiki";
+                TenWikias[0].PrefixOfWiki = "glee";
+                TenWikias[1].NameOfWiki = "BATTLEFIELD WIKI";
+                TenWikias[1].PrefixOfWiki = "battlefield";
+                TenWikias[2].NameOfWiki = "animepedia";
+                TenWikias[2].PrefixOfWiki = "anime";
+                TenWikias[3].NameOfWiki = "Logopedia";
+                TenWikias[3].PrefixOfWiki = "logos";
+                TenWikias[4].NameOfWiki = "Academic Jobs";
+                TenWikias[4].PrefixOfWiki = "academicjobs";
+                TenWikias[5].NameOfWiki = "Borderlands Wiki";
+                TenWikias[5].PrefixOfWiki = "borderlands";
+                TenWikias[6].NameOfWiki = "Solar Cookers World";
+                TenWikias[6].PrefixOfWiki = "solarcooking";
+                TenWikias[7].NameOfWiki = "Snow White and the Huntsman Wiki";
+                TenWikias[7].PrefixOfWiki = "snowwhiteandthehuntsman";
+                TenWikias[8].NameOfWiki = "The One Wiki to Rule Them All";
+                TenWikias[8].PrefixOfWiki = "lotr";
+                TenWikias[9].NameOfWiki = "CALL OF DUTY";
+                TenWikias[9].PrefixOfWiki = "callofduty";
 
                 using (isf)
                 {
+                    if (!isf.DirectoryExists("Resources"))
+                    {
+                        isf.CreateDirectory("Resources");
+                    }
+
                     using (IsolatedStorageFileStream rawStream = isf.CreateFile(path))
                     {
                         StreamWriter writer = new StreamWriter(rawStream);
 
-                        foreach (KeyValuePair<string, string> pair in TenWikias)
+                        foreach (PairOfNames pair in TenWikias)
                         {
-                            writer.WriteLine(pair.Key, Encoding.UTF8);
-                            writer.WriteLine(pair.Value, Encoding.UTF8);
+                            writer.WriteLine(pair.NameOfWiki, Encoding.UTF8);
+                            writer.WriteLine(pair.PrefixOfWiki, Encoding.UTF8);
                             writer.WriteLine("**********", Encoding.UTF8);
                         }
 
@@ -117,6 +151,8 @@ namespace Example1
             {
                 App.ViewModel.LoadData();
             }
+
+            GetTenWikisFromFile();
         }
 
         private void Pivot_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -146,22 +182,49 @@ namespace Example1
             }
         }
 
-        private void test2(WriteableBitmap downloadedImage)
+        private void test3(WriteableBitmap downloadedImage, DotNetMetroWikiaAPI.Api.FileInfo info)
         {
+            TenImages.Add(info, downloadedImage);
             backImageTEST.Source = downloadedImage;
         }
 
-        private void test(List<DotNetMetroWikiaAPI.Api.FileInfo> lista)
+        private void CheckNow()
         {
-            searchWikiBox.Text = lista.ElementAt(0).ToString();
-            /// TODO: Need to have working imagecrop on MW1.19 !!!
-            lista.ElementAt(0).SetAddressOfFile("http://www.fizyka.umk.pl/~jkob/gallery4home/gallery4home/original_img_5430_jpeg.jpeg");
-            DotNetMetroWikiaAPI.Api.DownloadImage(test2, lista.ElementAt(0));
+            tempCounter++;
+            if (tempCounter == ListOfFiles.Count)
+            {
+                foreach (DotNetMetroWikiaAPI.Api.FileInfo fi in ListOfFiles)
+                {
+                    DotNetMetroWikiaAPI.Api.DownloadImage(test3, ListOfFiles
+                        .ElementAt(0));
+                }
+            }
+        }
+
+        private async void test(List<DotNetMetroWikiaAPI.Api.FileInfo> lista)
+        {
+            ListOfFiles = lista;
+            searchWikiBox.Text = ListOfFiles.ElementAt(0).ToString();
+            tempCounter = 0;
+            foreach (DotNetMetroWikiaAPI.Api.FileInfo fi in ListOfFiles)
+            {
+                DotNetMetroWikiaAPI.Api.GetAddressOfTheFile
+                    (new Action(CheckNow), fi, prefix);
+            }
         }
 
         private void ListBoxItem_Tap(object sender, GestureEventArgs e)
         {
-            DotNetMetroWikiaAPI.Api.GetNewFilesListFromWiki(test, "glee", 10);
+            string name = ((TextBlock)((StackPanel)sender).Children.ElementAt(0)).Text;
+            foreach (PairOfNames pon in TenWikias)
+            {
+                if (pon.NameOfWiki == name)
+                {
+                    prefix = pon.PrefixOfWiki;
+                    break;
+                }
+            }
+            DotNetMetroWikiaAPI.Api.GetNewFilesListFromWiki(test, prefix, 10);
         }
 
         private void Grid_DoubleTap(object sender, GestureEventArgs e)

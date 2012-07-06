@@ -49,6 +49,8 @@ namespace DotNetMetroWikiaAPI
             string byUsername;
             int FileID = -1;
             string addressOfFile;
+            /// TODO: Make usage of wikiPrefix in API.
+            ///string wikiPrefix;
 
             /// <summary>Creates FileInfo Object.</summary>
             /// <param name="filename">Name of the file.</param>
@@ -153,6 +155,11 @@ namespace DotNetMetroWikiaAPI
             public string GetFilename()
             {
                 return filename;
+            }
+
+            public int GetFileID()
+            {
+                return FileID;
             }
 
             public string GetAddressOfFile()

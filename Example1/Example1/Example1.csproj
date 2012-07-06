@@ -51,9 +51,6 @@
     <Reference Include="AsyncCtpLibrary_Phone">
       <HintPath>.\AsyncCtpLibrary_Phone.dll</HintPath>
     </Reference>
-    <Reference Include="DotNetMetroWikiaAPI">
-      <HintPath>.\DotNetMetroWikiaAPI.dll</HintPath>
-    </Reference>
     <Reference Include="Microsoft.Phone" />
     <Reference Include="Microsoft.Phone.Controls, Version=7.0.0.0, Culture=neutral, PublicKeyToken=24eec0d8c86cda1e, processorArchitecture=MSIL" />
     <Reference Include="Microsoft.Phone.Interop" />
@@ -72,6 +69,7 @@
     <Compile Include="App.xaml.cs">
       <DependentUpon>App.xaml</DependentUpon>
     </Compile>
+    <Compile Include="DateProcessing.cs" />
     <Compile Include="FileInfo.cs" />
     <Compile Include="ImageProcessing.cs" />
     <Compile Include="Images.xaml.cs">
@@ -81,6 +79,7 @@
       <DependentUpon>MainPage.xaml</DependentUpon>
     </Compile>
     <Compile Include="PageList.cs" />
+    <Compile Include="PairOfNames.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="QueryMaker.cs" />
     <Compile Include="Site.cs" />
@@ -112,6 +111,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Background.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Camera.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Images\1.jpg">
@@ -172,6 +174,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Images\9av.jpg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Picture.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="SplashScreenImage.jpg" />

@@ -29,7 +29,7 @@ namespace Example1
                     wb.SaveJpeg(rawStream, wb.PixelWidth, wb.PixelHeight, 0, 100);
                 }
             }
-            catch (Exception e)
+            catch
             {
                 Thread.Sleep(2000);
             }

@@ -20,7 +20,7 @@
         <controls:Pivot Title="Wikia API Image Example" SelectionChanged="Pivot_SelectionChanged">
             <!--Pivot item one-->
             <controls:PivotItem Header="Wikis">
-                <Grid>
+                <Grid DataContext="{Binding}">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition/>
@@ -33,37 +33,14 @@
                         <TextBlock VerticalAlignment="Center" Grid.Column="0" Text="My choise:"/>
                         <TextBox Grid.Column="1" Name="searchWikiBox" />
                     </Grid>
-                    <ListBox x:Name="Wikis" Grid.Row="1" >
-                        <ListBoxItem HorizontalAlignment="Center" Tap="ListBoxItem_Tap">
-                            <TextBlock Text="glee wiki" FontSize="36" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10" />
-                        </ListBoxItem>
-                        <ListBoxItem HorizontalAlignment="Center">
-                            <TextBlock Text="BATTLEFIELD WIKI" FontSize="36" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10" />
-                        </ListBoxItem>
-                        <ListBoxItem HorizontalAlignment="Center">
-                            <TextBlock Text="Dragon Age Wiki" FontSize="36" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10" />
-                        </ListBoxItem>
-                        <ListBoxItem HorizontalAlignment="Center">
-                            <TextBlock Text="Academic Jobs Wiki" FontSize="36" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10" />
-                        </ListBoxItem>
-                        <ListBoxItem HorizontalAlignment="Center">
-                            <TextBlock Text="Borderlands Wiki" FontSize="36" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10" />
-                        </ListBoxItem>
-                        <ListBoxItem HorizontalAlignment="Center">
-                            <TextBlock Text="One Wiki to Rule Them All" FontSize="36" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10" />
-                        </ListBoxItem>
-                        <ListBoxItem HorizontalAlignment="Center">
-                            <TextBlock Text="Logopedia" FontSize="36" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10" />
-                        </ListBoxItem>
-                        <ListBoxItem HorizontalAlignment="Center">
-                            <TextBlock Text="Solar Cookers World Network" FontSize="36" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10" />
-                        </ListBoxItem>
-                        <ListBoxItem HorizontalAlignment="Center">
-                            <TextBlock Text="Snow White and the Huntsman Wiki" FontSize="36" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10" />
-                        </ListBoxItem>
-                        <ListBoxItem HorizontalAlignment="Center">
-                            <TextBlock Text="Animepedia" FontSize="36" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10" />
-                        </ListBoxItem>
+                    <ListBox x:Name="Wikis" Grid.Row="1" ItemsSource="{Binding TenWikias}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Width="432" HorizontalAlignment="Center" Tap="ListBoxItem_Tap">
+                                    <TextBlock Text="{Binding NameOfWiki,Mode=OneWay}" FontSize="36" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
                     </ListBox>
                 </Grid>
             </controls:PivotItem>
@@ -121,8 +98,8 @@
     <!--Sample code showing usage of ApplicationBar-->
     <phone:PhoneApplicationPage.ApplicationBar>
         <shell:ApplicationBar IsVisible="False" IsMenuEnabled="True">
-            <shell:ApplicationBarIconButton IconUri="/Images/appbar_button1.png" Text="Make"/>
-            <shell:ApplicationBarIconButton IconUri="/Images/appbar_button2.png" Text="Choose"/>
+            <shell:ApplicationBarIconButton IconUri="/Camera.png" Text="Make"/>
+            <shell:ApplicationBarIconButton IconUri="/Picture.png" Text="Choose"/>
             <shell:ApplicationBar.MenuItems>
                 <shell:ApplicationBarMenuItem Text="Take a photo"/>
                 <shell:ApplicationBarMenuItem Text="Choose your photo"/>

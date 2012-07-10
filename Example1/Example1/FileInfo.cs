@@ -145,7 +145,10 @@ namespace DotNetMetroWikiaAPI
             /// <summary>Check if the FileInfo applies to an image file.</summary>
             public bool isImage()
             {
-                if (filename.EndsWith(".jpg") || filename.EndsWith(".png") || filename.EndsWith(".gif") || filename.EndsWith(".jpeg"))
+                if (filename.EndsWith(".jpg") || filename.EndsWith(".png") || filename
+                    .EndsWith(".gif") || filename.EndsWith(".jpeg") || filename
+                    .EndsWith(".JPG") || filename.EndsWith(".PNG") || filename
+                    .EndsWith(".GIF") || filename.EndsWith(".JPEG"))
                 {
                     return true;
                 }

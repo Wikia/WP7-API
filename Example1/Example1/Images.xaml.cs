@@ -18,6 +18,7 @@ using System.IO;
 using System.Text;
 using System.Collections.ObjectModel;
 using System.Threading;
+using Microsoft.Phone;
 
 namespace Example1
 {
@@ -182,39 +183,48 @@ namespace Example1
             }
         }
 
-        private void test3(WriteableBitmap downloadedImage, DotNetMetroWikiaAPI.Api.FileInfo info)
+        private void SaveImage(byte[] diAsByteArray, DotNetMetroWikiaAPI.Api.FileInfo info)
         {
-            TenImages.Add(info, downloadedImage);
-            backImageTEST.Source = downloadedImage;
+            using (Stream ms = new MemoryStream(diAsByteArray))
+            {
+                WriteableBitmap downloadedImage = PictureDecoder.DecodeJpeg(ms);
+                TenImages.Add(info, downloadedImage);
+                backImageTEST.Source = downloadedImage;
+                tempCounter++;
+            };
+            if (tempCounter == ListOfFiles.Count)
+            {
+                Wikis.IsEnabled = true;
+            }
         }
 
-        private void CheckNow()
+        private async void CheckIsItNow()
         {
             tempCounter++;
             if (tempCounter == ListOfFiles.Count)
             {
+                tempCounter = 0;
                 foreach (DotNetMetroWikiaAPI.Api.FileInfo fi in ListOfFiles)
                 {
-                    DotNetMetroWikiaAPI.Api.DownloadImage(test3, ListOfFiles
-                        .ElementAt(0));
+                    DotNetMetroWikiaAPI.Api.DownloadImage(SaveImage, fi);
                 }
             }
         }
 
-        private async void test(List<DotNetMetroWikiaAPI.Api.FileInfo> lista)
+        private async void WholeListDownloaded(List<DotNetMetroWikiaAPI.Api.FileInfo> lista)
         {
             ListOfFiles = lista;
-            searchWikiBox.Text = ListOfFiles.ElementAt(0).ToString();
             tempCounter = 0;
             foreach (DotNetMetroWikiaAPI.Api.FileInfo fi in ListOfFiles)
             {
-                DotNetMetroWikiaAPI.Api.GetAddressOfTheFile
-                    (new Action(CheckNow), fi, prefix);
+                await DotNetMetroWikiaAPI.Api.GetAddressOfTheFile
+                    (new Action(CheckIsItNow), fi, prefix);
             }
         }
 
-        private void ListBoxItem_Tap(object sender, GestureEventArgs e)
+        private async void ListBoxItem_Tap(object sender, GestureEventArgs e)
         {
+            Wikis.IsEnabled = false;
             string name = ((TextBlock)((StackPanel)sender).Children.ElementAt(0)).Text;
             foreach (PairOfNames pon in TenWikias)
             {
@@ -224,7 +234,7 @@ namespace Example1
                     break;
                 }
             }
-            DotNetMetroWikiaAPI.Api.GetNewFilesListFromWiki(test, prefix, 10);
+            await DotNetMetroWikiaAPI.Api.GetNewFilesListFromWiki(WholeListDownloaded, prefix, 10);
         }
 
         private void Grid_DoubleTap(object sender, GestureEventArgs e)
@@ -237,8 +247,10 @@ namespace Example1
             isLogged = false;
         }
 
-        private void PhoneApplicationPage_LostFocus(object sender, RoutedEventArgs e)
+        protected override void OnNavigatedFrom(System.Windows.Navigation.NavigationEventArgs e)
         {
+            base.OnNavigatedFrom(e);
+
             DotNetMetroWikiaAPI.Api.LogOut(new Action<IRestResponse, string>(LogOut));
         }
 

@@ -795,11 +795,15 @@ namespace DotNetMetroWikiaAPI
             /// be the source.</param>
             public void GetPageHTM(string pageURL, Action<IRestResponse, object[]> callback, params object[] args)
             {
-                var client = new RestClient(pageURL);
+                int lastSlash = pageURL.LastIndexOf('/');
+                string page = pageURL.Substring(0, lastSlash);
+                string item = pageURL.Substring(lastSlash + 1);
+
+                var client = new RestClient(page);
 
                 client.CookieContainer = cookies;
 
-                var request = new RestRequest("", Method.GET);
+                var request = new RestRequest(item, Method.GET);
 
                 request.AddHeader("ContentType", "application/x-www-form-urlencoded");
 

@@ -42,6 +42,8 @@ using System.Threading;
 using System.Windows.Media.Imaging;
 using System.Text;
 using Microsoft.Phone;
+using System.Threading.Tasks;
+using System.Windows.Threading;
 
 namespace DotNetMetroWikiaAPI
 {
@@ -52,6 +54,7 @@ namespace DotNetMetroWikiaAPI
         static Delegate tempDel = null;
         static int tempInt = -1;
         static string tempAddress = null;
+        private static readonly object _locker = new object();
 
         /// <summary>Method to log in to the www.wikia.com api.</summary>
         /// <param name="username">Username.</param>
@@ -370,7 +373,7 @@ namespace DotNetMetroWikiaAPI
         /// <param name="callback">Method using</param>
         /// <param name="wikiname">Prefix used by choosen wiki.</param>
         /// <param name="quantity">How many new files you want to get.</param>
-        public static void GetNewFilesListFromWiki(Action<List<FileInfo>> callback,
+        public static async Task GetNewFilesListFromWiki(Action<List<FileInfo>> callback,
             string wikiname, int quantity)
         {
             while (!isTempDelFree) { Thread.Sleep(2000); };
@@ -383,22 +386,31 @@ namespace DotNetMetroWikiaAPI
                 GetNewFilesListWrapper);
         }
 
-        private static void DownloadImageWrapper(IRestResponse response, params object[] args)
+
+        public class DownloadImageClass
         {
-            byte[] imageData = response.RawBytes;
-            using (Stream ms = new MemoryStream(imageData))
+            private Action<byte[], FileInfo> callback;
+            private FileInfo file;
+
+            public DownloadImageClass(Action<byte[], FileInfo> callback, FileInfo file)
             {
-                WriteableBitmap wbImg = PictureDecoder.DecodeJpeg(ms);
-                
+                this.callback = callback;
+                this.file = file;
+            }
 
-                Delegate temp = tempDel;
-                tempDel = null;
-                isTempDelFree = true;
-                temp.DynamicInvoke(wbImg, ((FileInfo)args[0]));
-            };
+            public void DownloadImageProc()
+            {
+                if (file.isImage())
+                {
+                    usedWiki.GetPageHTM(file.GetAddressOfFile(), DownloadImageWrapper);
+                }
+            }
 
-            tempDel = null;
-            isTempDelFree = true;
+            private void DownloadImageWrapper(IRestResponse response, params object[] args)
+            {
+                byte[] imageData = response.RawBytes;
+                    Deployment.Current.Dispatcher.BeginInvoke(callback, imageData, file);
+            }
         }
 
         /// <summary>Download whole image and returns it as a WritableBitmap to the
@@ -406,38 +418,41 @@ namespace DotNetMetroWikiaAPI
         /// <param name="callback">Function which will be called after downloading the
         /// picture.</param>
         /// <param name="file">FileInfo of the Picture.</param>
-        public static void DownloadImage(Action<WriteableBitmap, FileInfo> callback, FileInfo file)
+        public static void DownloadImage(Action<byte[], FileInfo> callback, FileInfo file)
+        {
+            DownloadImageClass dit = new DownloadImageClass(callback, file);
+            Thread t = new Thread(new ThreadStart(dit.DownloadImageProc));
+            t.Start();
+        }
+
+        public async static Task GetAddressOfTheFile(Action callback, FileInfo file, string wikiname)
         {
             while (!isTempDelFree) { Thread.Sleep(2000); };
             tempDel = callback;
             isTempDelFree = false;
-            if (file.isImage())
-            {
-                usedWiki.GetPageHTM(file.GetAddressOfFile(), DownloadImageWrapper, file);
-            }
-            else
-            {
-                tempDel = null;
-                isTempDelFree = true;
-            }
-        }
 
-        private static void ReturnAddressOfTheFileWrapper(IRestResponse e, params object[] args)
-        {
-            string content = e.Content;
-            FileInfo target = (FileInfo)args[0];
+            int beginning = usedWiki.site.IndexOf(".wikia");
+
+            //usedWiki.GetPageHTM("http://" + wikiname + usedWiki.site.Substring(beginning)
+            //    + "/api.php?action=imageserving&wisId=" + file.GetFileID()
+            //    + "&format=xml", ReturnAddressOfTheFileWrapper, file);
+
+            string content = await (new WebClient()).DownloadStringTaskAsync("http://"
+                + wikiname + usedWiki.site.Substring(beginning)
+                + "/api.php?action=imageserving&wisId=" + file.GetFileID()
+                + "&format=xml");
 
             XmlReader reader = XmlReader.Create(new StringReader(content));
             if (reader.ReadToFollowing("image"))
             {
-                target.SetAddressOfFile(reader.GetAttribute(0));
+                file.SetAddressOfFile(reader.GetAttribute(0));
             }
             else
             {
                 reader.Close();
                 tempDel = null;
                 isTempDelFree = true;
-            
+
                 throw new WikiUserException("Wrong xml file received.");
             }
             reader.Close();
@@ -446,20 +461,6 @@ namespace DotNetMetroWikiaAPI
             tempDel = null;
             isTempDelFree = true;
             temp.DynamicInvoke();
-        }
-
-        public static void GetAddressOfTheFile(Action callback, FileInfo file, string wikiname)
-        {
-            while (!isTempDelFree) { Thread.Sleep(2000); };
-            tempDel = callback;
-            isTempDelFree = false;
-
-            int beginning = usedWiki.site.IndexOf(".wikia");
-
-            usedWiki.GetPageHTM("http://" + wikiname + usedWiki.site.Substring(beginning)
-                + "api.php?action=imageserving&wisId=" + file.GetFileID()
-                + "&format=xml", ReturnAddressOfTheFileWrapper, file);
-
         }
     }
 }
